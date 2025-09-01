@@ -1,9 +1,11 @@
 # usando a biblioteca 'openai' moderna (ex.: OpenAI Python SDK)
 from openai import OpenAI
 
+print(".:: my-sample ::.")
+
 client = OpenAI(base_url="http://localhost:1234/v1")
 
-resp = client.chat.completions.create(
+response = client.chat.completions.create(
     model="openai/gpt-oss-20b",
     messages=[
         {"role": "system", "content": "Você é um assistente de uso pessoal em conhecimentos gerais."},
@@ -13,4 +15,4 @@ resp = client.chat.completions.create(
 )
 
 # normalmente o conteúdo user-facing já virá em resp.choices[0].message.content
-print(resp.choices[0].message.content)
+print(response.choices[0].message.content)

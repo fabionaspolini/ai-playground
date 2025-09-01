@@ -14,10 +14,8 @@ while True:
     chat.add_user_message(user_input)
     prediction_stream = model.respond_stream(
         chat,
-        on_message=chat.append,
-    )
+        on_message=chat.append)
     print("Bot: ", end="", flush=True)
     for fragment in prediction_stream:
         print(fragment.content, end="", flush=True)
     print()
-
