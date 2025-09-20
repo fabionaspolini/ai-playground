@@ -1,6 +1,6 @@
 from openai import OpenAI
 
-print(".:: 01_sample.py ::.")
+print(".:: self-hosted / gpt-oss-openai-library / 01_sample.py ::.")
 
 client = OpenAI(base_url="http://localhost:1234/v1")
 
