@@ -1,7 +1,6 @@
-# usando a biblioteca 'openai' moderna (ex.: OpenAI Python SDK)
 from openai import OpenAI
 
-print(".:: my-sample ::.")
+print(".:: 01_sample.py ::.")
 
 client = OpenAI(base_url="http://localhost:1234/v1")
 
@@ -16,3 +15,6 @@ response = client.chat.completions.create(
 
 # normalmente o conteúdo user-facing já virá em resp.choices[0].message.content
 print(response.choices[0].message.content)
+
+# Output
+# A capital do Brasil é **Brasília**.

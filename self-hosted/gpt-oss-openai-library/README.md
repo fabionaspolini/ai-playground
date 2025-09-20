@@ -1,0 +1,1 @@
+Exemplo utilizando a library `openai` integrar com modelo self-hosted `openai/gpt-oss-20b`.

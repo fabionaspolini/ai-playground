@@ -8,7 +8,7 @@ DEFAULT_FUNCTION_PROPERTIES = """
     "type": "object",
     "properties": {
         "location": {
-            "type": "string",
+            "type": "string",`
             "description": "The city and state, e.g. San Francisco, CA"
         }
     },

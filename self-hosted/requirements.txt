@@ -1,3 +1,4 @@
-lmstudio==1.4.1
+lmstudio==1.5.5
+openai==1.108.1
 openai-harmony==0.0.4
 gpt-oss==0.0.0
