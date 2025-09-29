@@ -73,8 +73,7 @@ def send_message(session_id: str, user_text: str):
     print(f"[session_id={session_id}] Você: {user_text}")
     response = with_history.invoke(
         {"input": user_text},
-        config=RunnableConfig(configurable={"session_id": session_id})
-        # config={"configurable": {"session_id": session_id}},
+        config=RunnableConfig(configurable={"session_id": session_id}),
     )
     # A resposta pode vir como string ou BaseMessage dependendo do runnable
     # Normalmente ChatOpenAI retorna uma string tratável como AI message
