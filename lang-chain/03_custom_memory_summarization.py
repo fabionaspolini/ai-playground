@@ -60,16 +60,26 @@ def summarize_messages(messages: List[BaseMessage]) -> str:
     """Gera um resumo textual das mensagens fornecidas."""
     text_parts = []
     for m in messages:
-        who = "user" if isinstance(m, HumanMessage) else "assistant"
-        text_parts.append(f"{who}: {m.content}")
+        if hasattr(m, "is_resume") and m.is_resume:
+            # content_without_first_line = "\n".join(m.content.split("\n")[1:]).strip()
+            text_parts.append(f"### Resumo de conversa anterior\n\n{m.content}\n")
+            text_parts.append("### Fim do resumo e começo de novas mensagens para agregar ao resumo anterior\n\n")
+        else:
+            
+            who = "user" if isinstance(m, HumanMessage) else "assistant"
+            text_parts.append(f"{who}: {m.content}")
 
     join_text = "\n".join(text_parts)
     summary_prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "Você está sendo utilizado para comprimir a parte inicial das mensagens de um chat.\n" \
-                       "Você deve resumir o texto, mas preservar detalhes importantes, como nomes, datas, fatos.\n" \
-                       "O objetivo é utilizar esse resumo para manter o contexto da conversa, mas economizar tokens.\n" \
-                       "Preserve o idioma original do texto."),
+            ("system", "Você está sendo utilizado para comprimir a parte inicial das mensagens de um chat.\n"
+                       "Você deve resumir o texto, mas preservar detalhes importantes, como nomes, datas, fatos.\n"
+                       "O objetivo é utilizar esse resumo para manter o contexto da conversa, mas economizar tokens.\n\n"
+                       "**Regras**:\n" \
+                       "- Preserve o idioma original do texto.\n"
+                       f"- A cada {SUMARIZE_AFTER_MESSAGES} mensagens, são compactadas as {MESSAGES_TO_SUMMARIZE} mais antigas em um resumo.\n"
+                       f"- Você pode estar resumindo novas mensagens, e um resumo anterior já existente. O resultado deve agregar ambos em um novo resumo.\n"
+                       f"- Sua resposta não precisa citar que é um resumo, apenas gere o conteúdo."),
             ("human", join_text),
         ]
     )
@@ -80,19 +90,38 @@ def summarize_messages(messages: List[BaseMessage]) -> str:
 
 # ---------- Controle recursivo de histórico ----------
 
+def _count_user_or_ai_messages(messages: List[BaseMessage]) -> int:
+    count = 0
+    for m in messages:
+        if isinstance(m, (HumanMessage, AIMessage)):
+            count += 1
+    return count
+
+def _count_start_ai_messages(messages: List[BaseMessage]) -> int:
+    count = 0
+    for m in messages:
+        if isinstance(m, AIMessage):
+            count += 1
+        else:
+            break
+    return count
+
 def maybe_summarize_history(session_id: str):
     history = get_history_by_session_id(session_id)
     messages = history.messages
 
-    if len(messages) >= SUMARIZE_AFTER_MESSAGES:
+    if _count_user_or_ai_messages(messages) >= SUMARIZE_AFTER_MESSAGES:
+        start_ai_messages_count = _count_start_ai_messages(messages)
+        
         # Pega as 10 mais antigas para resumir (5 do usuário + 5 do assistente)
-        to_summarize = messages[:MESSAGES_TO_SUMMARIZE]
+        to_summarize = messages[:(start_ai_messages_count + MESSAGES_TO_SUMMARIZE)]
         summary_text = summarize_messages(to_summarize)
 
         # Substitui por uma mensagem "resumo"
         new_messages: list[BaseMessage] = [
-            AIMessage(content=f"Resumo compactado da conversa inicial para economia de tokens:\n{summary_text}")]
-        new_messages.extend(messages[MESSAGES_TO_SUMMARIZE:])  # mantém as 10 mais recentes
+            AIMessage(content=f"Essa mensagem é um resumo para compactar mensagens anteriores e economizar tokens, "
+                              f"mas preservar contexto da conversa:\n{summary_text}", is_resume=True)]
+        new_messages.extend(messages[(start_ai_messages_count + MESSAGES_TO_SUMMARIZE):])  # mantém as 10 mais recentes
 
         # Atualiza histórico
         history.clear()
@@ -146,6 +175,41 @@ if __name__ == "__main__":
     send_message(sess, "e do Rio Grande do Norte?")  # 15
     send_message(sess, "e da Paraíba?")  # 16 - aqui deve resumir
     send_message(sess, "e do Amazonas?")  # 17
-    send_message(sess, "Resuma em uma frase as respostas anteriores.")  # 18
+    send_message(sess, "Quantas capitais você me falou até agora?")  # 18 - 17 capitais (1 nacional + 16 estaduais)
+    send_message(sess, "Resuma em uma frase as respostas anteriores.")  # 19
 
     print("Fim do exemplo.")
+
+    ### ULTIMA RESPOSTA ###
+    # --- Histórico armazenado ---
+    # [ai] Essa mensagem é um resumo para compactar mensagens anteriores e economizar tokens, mas preservar contexto da conversa:
+    # Capital do Brasil: Brasília
+    # Capitais dos estados citados:
+    # - Santa Catarina: Florianópolis
+    # - Paraná: Curitiba
+    # - Rio Grande do Sul: Porto Alegre
+    # - São Paulo: São Paulo (cidade que dá nome ao estado)
+    # - Rio de Janeiro: Rio de Janeiro
+    # - Minas Gerais: Belo Horizonte
+    # - Espírito Santo: Vitória
+    # - Mato Grosso: Cuiabá
+    # - Mato Grosso do Sul: Campo Grande
+    # [human] e do Goiás?
+    # [ai] A capital do estado de Goiás é **Goiânia**.
+    # [human] e da Bahia?
+    # [ai] A capital do estado da Bahia é **Salvador**.
+    # [human] e de Pernambuco?
+    # [ai] A capital do estado de Pernambuco é **Recife**.
+    # [human] e do Ceará?
+    # [ai] A capital do estado do Ceará é **Fortaleza**.
+    # [human] e do Rio Grande do Norte?
+    # [ai] A capital do estado do Rio Grande do Norte é **Natal**.
+    # [human] e da Paraíba?
+    # [ai] A capital do estado da Paraíba é **João Pessoa**.
+    # [human] e do Amazonas?
+    # [ai] A capital do estado do Amazonas é **Manaus**.
+    # [human] Quantas capitais você me falou até agora?
+    # [ai] Você recebeu **17** capitais até agora.
+    # [human] Resuma em uma frase as respostas anteriores.
+    # [ai] Até agora eu citei as capitais brasileiras: Brasília; Florianópolis (SC), Curitiba (PR), Porto Alegre (RS), São Paulo (SP), Rio de Janeiro (RJ), Belo Horizonte (MG), Vitória (ES), Cuiabá (MT), Campo Grande (MS), Goiânia (GO), Salvador (BA), Recife (PE), Fortaleza (CE), Natal (RN), João Pessoa (PB) e Manaus (AM).
+    # ----------------------------
