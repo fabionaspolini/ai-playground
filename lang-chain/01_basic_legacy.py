@@ -52,7 +52,7 @@ def criar_conversation_chain(
     if model_name:
         llm = ChatOpenAI(model=model_name, temperature=temperature, openai_api_base="http://localhost:1234/v1")
     else:
-        llm = ChatOpenAI(temperature=temperature, openai_api_base="http://localhost:1234/v1",)
+        llm = ChatOpenAI(temperature=temperature, openai_api_base="http://localhost:1234/v1")
 
     # Seleciona tipo de memória
     if memory_type == "summary":
@@ -75,8 +75,8 @@ def main():
     print("Aplicação LangChain — chat com memória (buffer/summary/window)\n(entre 'sair' para terminar)\n")
 
     # Permite sobrescrever o modelo e tipo de memória via variáveis de ambiente
-    model = os.environ.get("LANGCHAIN_MODEL")
-    memory_type = os.environ.get("LANGCHAIN_MEMORY", "buffer")  # default: buffer
+    model = "openai/gpt-oss-20b" # os.environ.get("LANGCHAIN_MODEL")
+    memory_type = "recursive_summarizer" # os.environ.get("LANGCHAIN_MEMORY", "buffer")  # default: buffer
 
     chain = criar_conversation_chain(model_name=model, temperature=0.7, memory_type=memory_type)
 
