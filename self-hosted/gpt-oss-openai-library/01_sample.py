@@ -1,4 +1,5 @@
 from openai import OpenAI
+from openai.types.chat import ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam
 
 print(".:: self-hosted / gpt-oss-openai-library / 01_sample.py ::.")
 
@@ -10,6 +11,10 @@ response = client.chat.completions.create(
         {"role": "system", "content": "Você é um assistente de uso pessoal em conhecimentos gerais."},
         {"role": "user", "content": "Qual a capital do Brasil?"}
     ],
+    # messages=[
+    #     ChatCompletionSystemMessageParam(content="Você é um assistente de uso pessoal em conhecimentos gerais.", role="system"),
+    #     ChatCompletionUserMessageParam(content="Qual a capital do Brasil?", role="user"),
+    # ],
     temperature=0.1
 )
 
