@@ -1,17 +1,15 @@
-from typing import Annotated, Dict, List, TypedDict
-import json
+from typing import List, TypedDict
+
 import requests
-from langgraph.graph import StateGraph
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from operator import itemgetter
+from langchain_openai import ChatOpenAI
+from langgraph.graph import StateGraph
 
 # Config for LM Studio
 llm = ChatOpenAI(
     base_url="http://localhost:1234/v1",
-    api_key="not-needed",
-    model_name="openai/gpt-oss-20b",
+    model="openai/gpt-oss-20b",
     temperature=0.7
 )
 
@@ -38,7 +36,8 @@ def cep_agent(state: AgentState) -> AgentState:
     if "cep" in last_message:
         # Extract CEP using LLM
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "Extract the CEP number from the message. Return only the CEP number, nothing else."),
+            # ("system", "Extract the CEP number from the message. Return only the CEP number, nothing else."),
+            ("system", "Extraia o número do CEP da mensagem. Retorne apenas o número do CEP, nada mais."),
             ("human", last_message)
         ])
         cep_chain = prompt | llm
@@ -134,6 +133,7 @@ workflow.set_entry_point("cep_agent")
 
 # Compile the graph
 graph = workflow.compile()
+graph.get_graph().draw_mermaid_png(output_file_path="03_cep_clima_agent.png")
 
 # Chat function
 def chat(message: str, history: List[dict] = None) -> str:

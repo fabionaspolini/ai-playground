@@ -1,0 +1,12 @@
+[MESSAGES CONTROL]
+disable=trailing-whitespace,
+        missing-module-docstring,
+        missing-class-docstring,
+        missing-function-docstring,
+        too-few-public-methods,
+        too-many-arguments,
+        too-many-locals,
+        too-many-branches,
+        too-many-statements,
+        line-too-long
+        

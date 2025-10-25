@@ -31,7 +31,6 @@ llm = init_chat_model(
 
 # ---------- Tools / Funções expostas ao agente ----------
 
-@tool
 def viacep_lookup(cep: str) -> Dict[str, Any]:
     """
     Consulta ViaCEP (https://viacep.com.br/ws/{cep}/json/).
@@ -61,7 +60,14 @@ def viacep_lookup(cep: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Erro ao consultar ViaCEP: {str(e)}"}
 
-@tool
+@tool    
+def viacep_lookup_tool(cep: str) -> Dict[str, Any]:
+    """
+    Consulta ViaCEP (https://viacep.com.br/ws/{cep}/json/).
+    Retorna dicionário com dados do endereco ou {'error': '...'}.
+    """
+    return viacep_lookup(cep)
+
 def mock_weather(city: str, state: Optional[str] = None) -> Dict[str, Any]:
     """
     Mock de serviço de clima. Retorna resposta estruturada.
@@ -76,11 +82,19 @@ def mock_weather(city: str, state: Optional[str] = None) -> Dict[str, Any]:
         "note": "Dados mockados — substitua por sua API de clima."
     }
 
+@tool
+def mock_weather_tool(city: str, state: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Mock de serviço de clima. Retorna resposta estruturada.
+    Substitua por integração com API de clima real (OpenWeatherMap, ClimaTempo, etc.)
+    """
+    return mock_weather(city, state)
+
 # ---------- Cria o agente (ReAct) com ferramentas ----------
 # create_react_agent recebe um llm (BaseLanguageModel) e a lista de tools
 agent = create_react_agent(
     llm,
-    tools=[viacep_lookup, mock_weather],
+    tools=[viacep_lookup_tool, mock_weather_tool],
     prompt="Você é um assistente útil. Use as ferramentas disponíveis quando necessário."
 )
 

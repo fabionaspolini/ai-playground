@@ -94,6 +94,8 @@ graph.set_entry_point("supervisor")
 memory = MemorySaver()
 app = graph.compile(checkpointer=memory)
 
+app.get_graph().draw_mermaid_png(output_file_path="99_agente.png")
+
 
 # -----------------------------
 # Exemplo de uso

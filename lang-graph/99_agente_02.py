@@ -171,6 +171,8 @@ workflow.add_edge("clima_cep", "router")
 # Compila o grafo
 app = workflow.compile()
 
+app.get_graph().draw_mermaid_png(output_file_path="99_agente_02.png")
+
 # Função para processar mensagens
 def process_message(message: str) -> str:
     response = app.invoke({

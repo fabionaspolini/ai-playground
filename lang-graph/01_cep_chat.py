@@ -86,6 +86,8 @@ def configure_graph() -> CompiledStateGraph:
     # Compila o graph
     chain = workflow.compile()
     
+    chain.get_graph().draw_mermaid_png(output_file_path="01_cep_chat.png")
+    
     return chain
 
 # Função principal para processar mensagens
@@ -101,7 +103,7 @@ def process_message(message: str, chain: CompiledStateGraph):
 def main():
     chain = configure_graph()
     print("🤖 Assistente de CEP iniciado! Digite 'sair' para encerrar.")
-    print("Por favor, digite um CEP para consulta (formato: XXXXX-XXX):")
+    print("Por favor, digite um CEP para consulta:")
     
     while True:
         user_input = input("\nVocê: ")
