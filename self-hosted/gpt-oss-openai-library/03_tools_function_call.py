@@ -1,5 +1,3 @@
-import os
-
 from openai import OpenAI
 
 print(".:: self-hosted / gpt-oss-openai-library / 03_tools_function_call.py ::.")
