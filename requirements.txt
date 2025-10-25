@@ -1,7 +1,10 @@
 gpt-oss==0.0.0
-langchain==0.3.27
-langchain-community==0.3.30
-langchain-openai==0.3.33
+langchain==1.0.2
+langchain-classic==1.0.0
+langchain-community==0.4
+langchain-core==1.0.1
+langchain-openai==1.0.1
+langchain-text-splitters==1.0.0
 langgraph==0.6.7
 lmstudio==1.5.5
 python-dotenv==1.0.1

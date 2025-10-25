@@ -25,14 +25,15 @@ Observação: escolha o modelo que quiser via parâmetro `model` do ChatOpenAI. 
 
 import os
 from dotenv import load_dotenv
+from langchain_classic.chains.conversation.base import ConversationChain
+from langchain_classic.memory import ConversationSummaryMemory, ConversationBufferWindowMemory, ConversationBufferMemory
+from langchain_openai import ChatOpenAI
 
 # Carrega variável OPENAI_API_KEY do .env (se existir)
 load_dotenv()
 
 # Importações do LangChain
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory, ConversationSummaryMemory, ConversationBufferWindowMemory
+
 
 
 def criar_conversation_chain(
@@ -50,9 +51,9 @@ def criar_conversation_chain(
 
     # Inicializa o LLM
     if model_name:
-        llm = ChatOpenAI(model=model_name, temperature=temperature, openai_api_base="http://localhost:1234/v1")
+        llm = ChatOpenAI(model=model_name, temperature=temperature, base_url="http://localhost:1234/v1")
     else:
-        llm = ChatOpenAI(temperature=temperature, openai_api_base="http://localhost:1234/v1")
+        llm = ChatOpenAI(temperature=temperature, base_url="http://localhost:1234/v1")
 
     # Seleciona tipo de memória
     if memory_type == "summary":
