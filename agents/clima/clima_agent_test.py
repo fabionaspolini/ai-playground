@@ -10,7 +10,7 @@ messages = [{"role": "user", "content": "Qual temperatura no CEP 88804-495?"}]
 
 response = client.chat.completions.create(
     model="openai/gpt-oss-20b",
-    messages=,
+    messages=messages,
     tools=tools,
     temperature=0.1
 )
