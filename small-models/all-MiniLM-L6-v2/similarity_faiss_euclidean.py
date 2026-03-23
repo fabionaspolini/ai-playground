@@ -64,7 +64,7 @@ for i, idx in enumerate(indices[0]):
 # Top 1: Passo a passo para recuperação de conta e login. (Distância: 0.8124) <----- Útil 1
 # Top 2: Instruções para alterar sua credencial de acesso. (Distância: 0.9993) <----- Útil 2
 # Top 3: Passo a passo para trocar o e-mail. (Distância: 1.0161)
-# Top 4: Como resetar minha senha? (Distância: 1.2324) <----- Útil 3
+# Top 4: Como resetar minha senha? (Distância: 1.2324) <----- Útil 4
 # Top 5: O tempo hoje está ensolarado. (Distância: 1.2403)
 # Top 6: Política de reembolso e devolução. (Distância: 1.2490)
 # Top 7: Comprar pão na padaria da esquina. (Distância: 1.2943)
