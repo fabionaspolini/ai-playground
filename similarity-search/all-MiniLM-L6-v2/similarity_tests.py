@@ -162,6 +162,7 @@ def run_bm25(
 ) -> Dict:
     """Executa testes com BM25 (algoritmo lexical, não usa embeddings)."""
     resultados = []
+    documentos_ordenados_por_query = []
 
     # Tokenização do corpus (setup - não conta no tempo)
     tokenized_corpus = [tokenize(doc) for doc in base_conhecimento]
@@ -178,6 +179,7 @@ def run_bm25(
 
         ranks_uteis = calcular_ranks_uteis(top_n, respostas_uteis[query_idx], base_conhecimento)
         resultados.append(ranks_uteis)
+        documentos_ordenados_por_query.append(top_n)
 
     end_time = time.time()
     cpu_end, mem_end = obter_process_info()
@@ -188,6 +190,7 @@ def run_bm25(
         "algoritmo": "BM25",
         "modelo": "N/A (lexical)",
         "ranks_por_query": resultados,
+        "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
         "memoria_peak_mb": peak / (1024 * 1024),
         "cpu_percent": abs(cpu_end - cpu_start),
@@ -202,6 +205,7 @@ def run_cosine(
 ) -> Dict:
     """Executa testes com Similaridade de Cosseno (sentence-transformers)."""
     resultados = []
+    documentos_ordenados_por_query = []
 
     # Setup - carregar modelo e gerar embeddings (não conta no tempo)
     model = obter_modelo(modelo_nome)
@@ -226,6 +230,7 @@ def run_cosine(
             resultados_ordenados, respostas_uteis[query_idx], base_conhecimento
         )
         resultados.append(ranks_uteis)
+        documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
     cpu_end, mem_end = obter_process_info()
@@ -236,6 +241,7 @@ def run_cosine(
         "algoritmo": "Cosine Similarity",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
         "memoria_peak_mb": peak / (1024 * 1024),
         "cpu_percent": abs(cpu_end - cpu_start),
@@ -250,6 +256,7 @@ def run_faiss_cosine(
 ) -> Dict:
     """Executa testes com FAISS usando Similaridade de Cosseno (IndexFlatIP)."""
     resultados = []
+    documentos_ordenados_por_query = []
 
     # Setup - carregar modelo, gerar embeddings e criar índice (não conta no tempo)
     model = obter_modelo(modelo_nome)
@@ -277,6 +284,7 @@ def run_faiss_cosine(
             resultados_ordenados, respostas_uteis[query_idx], base_conhecimento
         )
         resultados.append(ranks_uteis)
+        documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
     cpu_end, mem_end = obter_process_info()
@@ -287,6 +295,7 @@ def run_faiss_cosine(
         "algoritmo": "FAISS Cosine",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
         "memoria_peak_mb": peak / (1024 * 1024),
         "cpu_percent": abs(cpu_end - cpu_start),
@@ -301,6 +310,7 @@ def run_faiss_euclidean(
 ) -> Dict:
     """Executa testes com FAISS usando Distância Euclidiana (IndexFlatL2)."""
     resultados = []
+    documentos_ordenados_por_query = []
 
     # Setup - carregar modelo, gerar embeddings e criar índice (não conta no tempo)
     model = obter_modelo(modelo_nome)
@@ -326,6 +336,7 @@ def run_faiss_euclidean(
             resultados_ordenados, respostas_uteis[query_idx], base_conhecimento
         )
         resultados.append(ranks_uteis)
+        documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
     cpu_end, mem_end = obter_process_info()
@@ -336,6 +347,7 @@ def run_faiss_euclidean(
         "algoritmo": "FAISS Euclidean",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
         "memoria_peak_mb": peak / (1024 * 1024),
         "cpu_percent": abs(cpu_end - cpu_start),
@@ -350,6 +362,7 @@ def run_chromadb(
 ) -> Dict:
     """Executa testes com ChromaDB (usa similaridade de cosseno internamente)."""
     resultados = []
+    documentos_ordenados_por_query = []
 
     # Setup - criar cliente, coleção e adicionar documentos (não conta no tempo)
     client = chromadb.Client()
@@ -380,6 +393,7 @@ def run_chromadb(
             resultados_ordenados, respostas_uteis[query_idx], base_conhecimento
         )
         resultados.append(ranks_uteis)
+        documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
     cpu_end, mem_end = obter_process_info()
@@ -390,6 +404,7 @@ def run_chromadb(
         "algoritmo": "ChromaDB",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
         "memoria_peak_mb": peak / (1024 * 1024),
         "cpu_percent": abs(cpu_end - cpu_start),
@@ -448,7 +463,11 @@ def calcular_rank_medio(ranks: List[int]) -> float:
 
 
 def gerar_relatorio(
-    dataset_nome: str, resultados: List[Dict], queries: List[str]
+    dataset_nome: str,
+    resultados: List[Dict],
+    queries: List[str],
+    base_conhecimento: List[str],
+    respostas_uteis: List[List[int]],
 ) -> str:
     """Gera o relatório em Markdown com tabela de resultados."""
     linhas = []
@@ -459,6 +478,8 @@ def gerar_relatorio(
 
     # Tabela de resultados detalhada
     linhas.append("## Resultados Detalhados\n")
+    linhas.append("")
+    linhas.append("Os valores por query, são os **ranks** de onde cada resposta útil foi calculada pelo algoritmo.")
     linhas.append("")
 
     # Cabeçalho da tabela
@@ -546,6 +567,59 @@ def gerar_relatorio(
     )
     linhas.append("")
 
+    # Top 10 respostas selecionadas pelo algoritmo vencedor para cada query
+    linhas.append("## Top 10 Respostas Selecionadas pelo Algoritmo Vencedor\n")
+    linhas.append("")
+    linhas.append("*As respostas em **negrito** são as respostas úteis esperadas.*\n")
+    linhas.append("")
+
+    # Obter documentos ordenados de todas as queries
+    documentos_ordenados = melhor.get("documentos_ordenados_por_query", [])
+
+    if documentos_ordenados and len(documentos_ordenados) == len(queries):
+        for query_idx, query in enumerate(queries):
+            # Header da query
+            linhas.append(f"### Query {query_idx + 1}: {query}\n")
+            linhas.append("")
+
+            # Tabela de top 10 respostas
+            linhas.append("| # | Resposta |")
+            linhas.append("|---|----------|")
+
+            docs_query = documentos_ordenados[query_idx]
+            top_n = min(10, len(docs_query))
+
+            # Obter índices das respostas úteis para esta query
+            indices_uteis = set(respostas_uteis[query_idx])
+
+            for i in range(top_n):
+                doc = docs_query[i]
+                # Verificar se este documento é uma resposta útil
+                # Precisamos encontrar o índice do documento na base_conhecimento
+                try:
+                    doc_idx = base_conhecimento.index(doc)
+                    eh_util = doc_idx in indices_uteis
+                except ValueError:
+                    eh_util = False
+
+                # Escapar pipes no texto para não quebrar a tabela markdown
+                doc_escaped = doc.replace("|", "\\|")
+
+                # Destacar em negrito se for resposta útil
+                if eh_util:
+                    linhas.append(f"| {i + 1} | **{doc_escaped}** |")
+                else:
+                    linhas.append(f"| {i + 1} | {doc_escaped} |")
+
+            if len(docs_query) <= 10:
+                linhas.append("")
+                linhas.append(f"*Nota: A base de conhecimento possui apenas {len(docs_query)} documento(s).*")
+
+            linhas.append("")
+    else:
+        linhas.append("*Não há documentos ordenados disponíveis para exibição.*")
+        linhas.append("")
+
     return "\n".join(linhas)
 
 
@@ -591,7 +665,13 @@ if __name__ == "__main__":
     print("Gerando relatório...")
     print("=" * 60)
 
-    relatorio = gerar_relatorio(DATASET_FILE, resultados, dataset["queries"])
+    relatorio = gerar_relatorio(
+        DATASET_FILE,
+        resultados,
+        dataset["queries"],
+        dataset["base_conhecimento"],
+        dataset["respostas_uteis"],
+    )
     salvar_relatorio(DATASET_FILE, relatorio)
 
     print("\nTestes concluídos!")
