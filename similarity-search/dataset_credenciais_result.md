@@ -14,21 +14,21 @@ Os valores por query, são os **ranks** de onde cada resposta útil foi calculad
 |--------|-----------|--------|--------|--------|-----------|-----------------|-----------------|
 | N/A (lexical) | BM25 | 1, 2, 3, 5 | 1, 2, 7, 9 | 1, 2, 4, 6 | **3.58** | 0.000 | 0.000 |
 | sentence-transformers/all-MiniLM-L6-v2 | Cosine Similarity | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.024 | 0.008 |
-| sentence-transformers/all-MiniLM-L6-v2 | FAISS Cosine | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.023 | 0.008 |
-| sentence-transformers/all-MiniLM-L6-v2 | FAISS Euclidean | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.025 | 0.008 |
-| sentence-transformers/all-MiniLM-L6-v2 | ChromaDB | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.031 | 0.010 |
-| paraphrase-multilingual-MiniLM-L12-v2 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.050 | 0.017 |
-| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.047 | 0.016 |
-| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.052 | 0.017 |
+| sentence-transformers/all-MiniLM-L6-v2 | FAISS Cosine | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.027 | 0.009 |
+| sentence-transformers/all-MiniLM-L6-v2 | FAISS Euclidean | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.031 | 0.010 |
+| sentence-transformers/all-MiniLM-L6-v2 | ChromaDB | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.039 | 0.013 |
+| paraphrase-multilingual-MiniLM-L12-v2 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.048 | 0.016 |
+| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.039 | 0.013 |
+| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.045 | 0.015 |
 | paraphrase-multilingual-MiniLM-L12-v2 | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.064 | 0.021 |
-| neuralmind/bert-base-portuguese-cased | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.117 | 0.039 |
-| neuralmind/bert-base-portuguese-cased | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.125 | 0.042 |
-| neuralmind/bert-base-portuguese-cased | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.117 | 0.039 |
-| neuralmind/bert-base-portuguese-cased | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.121 | 0.040 |
-| BAAI/bge-m3 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.416 | 0.139 |
-| BAAI/bge-m3 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.401 | 0.134 |
-| BAAI/bge-m3 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.364 | 0.121 |
-| BAAI/bge-m3 | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.406 | 0.135 |
+| neuralmind/bert-base-portuguese-cased | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.145 | 0.048 |
+| neuralmind/bert-base-portuguese-cased | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.144 | 0.048 |
+| neuralmind/bert-base-portuguese-cased | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.144 | 0.048 |
+| neuralmind/bert-base-portuguese-cased | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.127 | 0.042 |
+| BAAI/bge-m3 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.495 | 0.165 |
+| BAAI/bge-m3 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.516 | 0.172 |
+| BAAI/bge-m3 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.462 | 0.154 |
+| BAAI/bge-m3 | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.483 | 0.161 |
 
 ## Consolidado por Modelo
 

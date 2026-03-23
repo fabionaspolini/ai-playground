@@ -2,7 +2,9 @@ Comaração de algoritimos de busca por similaridade.
 
 ## Buscas Semântica
 
-Busca semântica converte texto em vetores e compara similaridade entre eles. Esse método possui capacidade de identificar intenções.
+Busca semântica converte texto em vetores e compara similaridade entre eles. 
+Esse método possui capacidade de identificar contexto entre as sentenças. Funciona até com sinônimos das palavras.
+
 Desempenho: Rápido.
 
 - similarity_chromadb
@@ -12,7 +14,9 @@ Desempenho: Rápido.
 
 ## Busca Lexical
 
-Busca lexical funciona baseado na frequência de palavras.
+Busca lexical funciona baseado apenas na frequência de palavras, e não possui capacidade de entender contextos.
+Não possui capacidade de entender sinônimos.
+
 Desempenho: Muito rápido.
 
 - similarity_bm25
@@ -43,6 +47,12 @@ O arquivo [similarity_tests.py](similarity_tests.py) faz baterias de testes em c
 - [dataset_credenciais.json](dataset_credenciais.json) → [dataset_credenciais_result.md](dataset_credenciais_result.md): Arquivo pequeno criado por humano afim de validar a acurácia dos algoritmos.
 - [dataset_investimentos.json](dataset_investimentos.json) → [dataset_investimentos_result.md](dataset_investimentos_result.md): Arquivo grande para testes de performance, totalmente gerado por AI.
   As respostas úteis foram revisadas por humano apenas em carater de enteder se faz sentido, porém não foi revisado totalmente o dataset da base de conhecimento para saber se são realmente as mais relevante para considerar.
+
+### Veredito
+
+Em ambos testes, o algoritmo vencedor foi **Cosine Similarity** com modelo **BAAI/bge-m3** (análise semântica).
+
+Porém, a alta acurácia dele tem custo em processamento e tempo de reposta.
 
 ---
 
