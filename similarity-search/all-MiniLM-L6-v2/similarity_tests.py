@@ -509,35 +509,16 @@ def gerar_relatorio(
         modelos_dict[modelo].append(res)
 
     # Cabeçalho da tabela consolidada
-    header_consolidado = "| Modelo | "
-    for algo in set(res['algoritmo'] for res in resultados):
-        header_consolidado += f"{algo} | "
-    header_consolidado += "Média Geral |"
+    header_consolidado = "| Modelo | Média Geral |"
     linhas.append(header_consolidado)
 
     # Separador
-    separador_consolidado = "|--------|"
-    for _ in set(res['algoritmo'] for res in resultados):
-        separador_consolidado += "--------|"
-    separador_consolidado += "-------------|"
+    separador_consolidado = "|--------|-------------|"
     linhas.append(separador_consolidado)
 
     # Linhas de dados consolidados
     for modelo, res_list in modelos_dict.items():
         linha = f"| {modelo} |"
-
-        # Criar mapa algoritmo -> rank médio
-        algo_ranks = {res['algoritmo']: res for res in res_list}
-
-        # Rank médio por algoritmo
-        for algo in sorted(set(res['algoritmo'] for res in resultados)):
-            if algo in algo_ranks:
-                res = algo_ranks[algo]
-                todos_ranks = [r for ranks in res["ranks_por_query"] for r in ranks]
-                rank_medio = calcular_rank_medio(todos_ranks)
-                linha += f" {rank_medio:.2f} |"
-            else:
-                linha += " - |"
 
         # Média geral do modelo (todos os algoritmos)
         todos_ranks_modelo = []
