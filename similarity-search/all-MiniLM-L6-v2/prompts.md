@@ -36,10 +36,13 @@ Ao término da comparação, deve ser gerado um arquivo markdown com o resultado
 O nome do arquivo deve ser igual ao dataset, mas com sugixo "_result" e extensão ".md".
 
 No arquivo deve ter uma tabela no onde:
-- Linhas são os algoritimos e modelos (uma coluna pra cada informação).
+- Linhas são os modelos e algoritimos (uma coluna pra cada informação).
 - Colunas são as queries.
 - O valores são os rank de cada resposta útil (concatene o rank separando por vígula. Exemplo: 1, 3, 5, 6).
 - Deve ser adicionada uma ultima coluna, com a média dos rank úteis. 
 - Coluna indicando o tempo de processamento total das queries.
 - Criar colunas para indicar consumo de CPU e memória médio para processar as queries.
+
+Geração de estatísticas:
+- A contabilização de tempo, uso de cpu e memória atual, deve ser apenas da parte que executar a query. 
 ```

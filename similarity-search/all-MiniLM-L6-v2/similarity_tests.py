@@ -132,13 +132,14 @@ def calcular_ranks_uteis(
     Calcula os ranks das respostas úteis.
     Retorna uma lista com a posição (1-based) de cada resposta útil no ranking.
     """
-    ranks = []
+    ranks: list[int] = []
     for idx_util in respostas_uteis_indices:
         doc_util = base_conhecimento[idx_util]
         for pos, doc in enumerate(resultados_ordenados):
             if doc == doc_util:
                 ranks.append(pos + 1)  # 1-based
                 break
+    ranks.sort()
     return ranks
 
 
@@ -162,9 +163,14 @@ def run_bm25(
     """Executa testes com BM25 (algoritmo lexical, não usa embeddings)."""
     resultados = []
 
-    # Tokenização do corpus
+    # Tokenização do corpus (setup - não conta no tempo)
     tokenized_corpus = [tokenize(doc) for doc in base_conhecimento]
     bm25 = BM25Okapi(tokenized_corpus)
+
+    # Medição apenas da execução das queries
+    tracemalloc.start()
+    start_time = time.time()
+    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         tokenized_query = tokenize(query)
@@ -173,10 +179,18 @@ def run_bm25(
         ranks_uteis = calcular_ranks_uteis(top_n, respostas_uteis[query_idx], base_conhecimento)
         resultados.append(ranks_uteis)
 
+    end_time = time.time()
+    cpu_end, mem_end = obter_process_info()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
     return {
         "algoritmo": "BM25",
         "modelo": "N/A (lexical)",
         "ranks_por_query": resultados,
+        "tempo_total": end_time - start_time,
+        "memoria_peak_mb": peak / (1024 * 1024),
+        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -189,8 +203,14 @@ def run_cosine(
     """Executa testes com Similaridade de Cosseno (sentence-transformers)."""
     resultados = []
 
+    # Setup - carregar modelo e gerar embeddings (não conta no tempo)
     model = obter_modelo(modelo_nome)
     embeddings_base = model.encode(base_conhecimento)
+
+    # Medição apenas da execução das queries
+    tracemalloc.start()
+    start_time = time.time()
+    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         embedding_query = model.encode(query)
@@ -207,10 +227,18 @@ def run_cosine(
         )
         resultados.append(ranks_uteis)
 
+    end_time = time.time()
+    cpu_end, mem_end = obter_process_info()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
     return {
         "algoritmo": "Cosine Similarity",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "tempo_total": end_time - start_time,
+        "memoria_peak_mb": peak / (1024 * 1024),
+        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -223,6 +251,7 @@ def run_faiss_cosine(
     """Executa testes com FAISS usando Similaridade de Cosseno (IndexFlatIP)."""
     resultados = []
 
+    # Setup - carregar modelo, gerar embeddings e criar índice (não conta no tempo)
     model = obter_modelo(modelo_nome)
     embeddings = model.encode(base_conhecimento).astype("float32")
     faiss.normalize_L2(embeddings)
@@ -230,6 +259,11 @@ def run_faiss_cosine(
     d = embeddings.shape[1]
     index = faiss.IndexFlatIP(d)
     index.add(embeddings)
+
+    # Medição apenas da execução das queries
+    tracemalloc.start()
+    start_time = time.time()
+    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         query_embedding = model.encode([query]).astype("float32")
@@ -244,10 +278,18 @@ def run_faiss_cosine(
         )
         resultados.append(ranks_uteis)
 
+    end_time = time.time()
+    cpu_end, mem_end = obter_process_info()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
     return {
         "algoritmo": "FAISS Cosine",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "tempo_total": end_time - start_time,
+        "memoria_peak_mb": peak / (1024 * 1024),
+        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -260,12 +302,18 @@ def run_faiss_euclidean(
     """Executa testes com FAISS usando Distância Euclidiana (IndexFlatL2)."""
     resultados = []
 
+    # Setup - carregar modelo, gerar embeddings e criar índice (não conta no tempo)
     model = obter_modelo(modelo_nome)
     embeddings = model.encode(base_conhecimento).astype("float32")
 
     d = embeddings.shape[1]
     index = faiss.IndexFlatL2(d)
     index.add(embeddings)
+
+    # Medição apenas da execução das queries
+    tracemalloc.start()
+    start_time = time.time()
+    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         query_embedding = model.encode([query]).astype("float32")
@@ -279,10 +327,18 @@ def run_faiss_euclidean(
         )
         resultados.append(ranks_uteis)
 
+    end_time = time.time()
+    cpu_end, mem_end = obter_process_info()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
     return {
         "algoritmo": "FAISS Euclidean",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "tempo_total": end_time - start_time,
+        "memoria_peak_mb": peak / (1024 * 1024),
+        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -295,7 +351,8 @@ def run_chromadb(
     """Executa testes com ChromaDB (usa similaridade de cosseno internamente)."""
     resultados = []
 
-    client = chromadb.Client() # Para persistir use: chromadb.PersistentClient(path="./db")
+    # Setup - criar cliente, coleção e adicionar documentos (não conta no tempo)
+    client = chromadb.Client()
     collection_name = normalizar_nome_colecao(f"teste_collection_{modelo_nome}")
     collection = client.create_collection(name=collection_name)
 
@@ -304,6 +361,11 @@ def run_chromadb(
 
     ids = [f"id{i}" for i in range(len(base_conhecimento))]
     collection.add(embeddings=embeddings, documents=base_conhecimento, ids=ids)
+
+    # Medição apenas da execução das queries
+    tracemalloc.start()
+    start_time = time.time()
+    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         query_embedding = model.encode([query]).tolist()
@@ -319,10 +381,18 @@ def run_chromadb(
         )
         resultados.append(ranks_uteis)
 
+    end_time = time.time()
+    cpu_end, mem_end = obter_process_info()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+
     return {
         "algoritmo": "ChromaDB",
         "modelo": modelo_nome,
         "ranks_por_query": resultados,
+        "tempo_total": end_time - start_time,
+        "memoria_peak_mb": peak / (1024 * 1024),
+        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -341,20 +411,7 @@ def executar_todos_testes(dataset: Dict) -> List[Dict]:
 
     # 1. BM25 (estático, não depende de modelo)
     print("Executando BM25...")
-    tracemalloc.start()
-    start_time = time.time()
-    cpu_start, mem_start = obter_process_info()
-
     resultado_bm25 = run_bm25(base_conhecimento, queries, respostas_uteis)
-
-    end_time = time.time()
-    cpu_end, mem_end = obter_process_info()
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-
-    resultado_bm25["tempo_total"] = end_time - start_time
-    resultado_bm25["memoria_peak_mb"] = peak / (1024 * 1024)
-    resultado_bm25["cpu_percent"] = abs(cpu_end - cpu_start)
     todos_resultados.append(resultado_bm25)
 
     # 2. Algoritmos baseados em embeddings
@@ -363,10 +420,6 @@ def executar_todos_testes(dataset: Dict) -> List[Dict]:
 
         for algo in ALGORITMOS_EMBEDDING:
             print(f"  -> {algo}...")
-
-            tracemalloc.start()
-            start_time = time.time()
-            cpu_start, mem_start = obter_process_info()
 
             if algo == "cosine":
                 resultado = run_cosine(base_conhecimento, queries, respostas_uteis, modelo)
@@ -377,14 +430,6 @@ def executar_todos_testes(dataset: Dict) -> List[Dict]:
             elif algo == "chromadb":
                 resultado = run_chromadb(base_conhecimento, queries, respostas_uteis, modelo)
 
-            end_time = time.time()
-            cpu_end, mem_end = obter_process_info()
-            current, peak = tracemalloc.get_traced_memory()
-            tracemalloc.stop()
-
-            resultado["tempo_total"] = end_time - start_time
-            resultado["memoria_peak_mb"] = peak / (1024 * 1024)
-            resultado["cpu_percent"] = abs(cpu_end - cpu_start)
             todos_resultados.append(resultado)
 
     return todos_resultados
@@ -412,19 +457,19 @@ def gerar_relatorio(
     linhas.append(f"**Queries testadas:** {len(queries)}\n")
     linhas.append("")
 
-    # Tabela de resultados
-    linhas.append("## Resultados\n")
+    # Tabela de resultados detalhada
+    linhas.append("## Resultados Detalhados\n")
     linhas.append("")
 
     # Cabeçalho da tabela
-    header = "| Algoritmo | Modelo | "
+    header = "| Modelo | Algoritmo | "
     for i, query in enumerate(queries):
         header += f"Query {i+1} | "
     header += "Rank Médio | Tempo (s) | CPU (%) | Memória (MB) |"
     linhas.append(header)
 
     # Separador
-    separador = "|-----------|--------|"
+    separador = "|--------|-----------|"
     for _ in queries:
         separador += "--------|"
     separador += "-----------|-----------|---------|--------------|"
@@ -432,7 +477,7 @@ def gerar_relatorio(
 
     # Linhas de dados
     for res in resultados:
-        linha = f"| {res['algoritmo']} | {res['modelo']} | "
+        linha = f"| {res['modelo']} | {res['algoritmo']} | "
 
         # Ranks por query
         for ranks_query in res["ranks_por_query"]:
@@ -446,6 +491,60 @@ def gerar_relatorio(
 
         # Métricas de desempenho
         linha += f"{res['tempo_total']:.3f} | {res['cpu_percent']:.1f} | {res['memoria_peak_mb']:.2f} |"
+
+        linhas.append(linha)
+
+    linhas.append("")
+
+    # Tabela consolidada por modelo
+    linhas.append("## Consolidado por Modelo\n")
+    linhas.append("")
+
+    # Agrupar resultados por modelo
+    modelos_dict: Dict[str, List[Dict]] = {}
+    for res in resultados:
+        modelo = res['modelo']
+        if modelo not in modelos_dict:
+            modelos_dict[modelo] = []
+        modelos_dict[modelo].append(res)
+
+    # Cabeçalho da tabela consolidada
+    header_consolidado = "| Modelo | "
+    for algo in set(res['algoritmo'] for res in resultados):
+        header_consolidado += f"{algo} | "
+    header_consolidado += "Média Geral |"
+    linhas.append(header_consolidado)
+
+    # Separador
+    separador_consolidado = "|--------|"
+    for _ in set(res['algoritmo'] for res in resultados):
+        separador_consolidado += "--------|"
+    separador_consolidado += "-------------|"
+    linhas.append(separador_consolidado)
+
+    # Linhas de dados consolidados
+    for modelo, res_list in modelos_dict.items():
+        linha = f"| {modelo} |"
+
+        # Criar mapa algoritmo -> rank médio
+        algo_ranks = {res['algoritmo']: res for res in res_list}
+
+        # Rank médio por algoritmo
+        for algo in sorted(set(res['algoritmo'] for res in resultados)):
+            if algo in algo_ranks:
+                res = algo_ranks[algo]
+                todos_ranks = [r for ranks in res["ranks_por_query"] for r in ranks]
+                rank_medio = calcular_rank_medio(todos_ranks)
+                linha += f" {rank_medio:.2f} |"
+            else:
+                linha += " - |"
+
+        # Média geral do modelo (todos os algoritmos)
+        todos_ranks_modelo = []
+        for res in res_list:
+            todos_ranks_modelo.extend([r for ranks in res["ranks_por_query"] for r in ranks])
+        media_geral = calcular_rank_medio(todos_ranks_modelo)
+        linha += f" **{media_geral:.2f}** |"
 
         linhas.append(linha)
 
