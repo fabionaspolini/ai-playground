@@ -7,12 +7,10 @@ e múltiplos modelos de embeddings.
 """
 
 import json
+import os
 import re
 import time
-import tracemalloc
-import psutil
-import os
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Any
 
 # Algoritmos baseados em embeddings
 from sentence_transformers import SentenceTransformer, util
@@ -31,7 +29,8 @@ _model_cache: Dict[str, SentenceTransformer] = {}
 # =============================================================================
 
 # Dataset de entrada
-DATASET_FILE = "dataset_credenciais.json"
+# DATASET_FILE = "dataset_credenciais.json"
+DATASET_FILE = "dataset_investimentos.json"
 
 # Modelos de embeddings para testar
 MODELOS = [
@@ -143,15 +142,6 @@ def calcular_ranks_uteis(
     return ranks
 
 
-def obter_process_info() -> Tuple[float, float]:
-    """Obtém uso de CPU (%) e memória (MB) do processo atual."""
-    process = psutil.Process(os.getpid())
-    cpu_percent = process.cpu_percent(interval=None)
-    mem_info = process.memory_info()
-    mem_mb = mem_info.rss / (1024 * 1024)
-    return cpu_percent, mem_mb
-
-
 # =============================================================================
 # ALGORITMOS
 # =============================================================================
@@ -169,9 +159,7 @@ def run_bm25(
     bm25 = BM25Okapi(tokenized_corpus)
 
     # Medição apenas da execução das queries
-    tracemalloc.start()
     start_time = time.time()
-    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         tokenized_query = tokenize(query)
@@ -182,9 +170,6 @@ def run_bm25(
         documentos_ordenados_por_query.append(top_n)
 
     end_time = time.time()
-    cpu_end, mem_end = obter_process_info()
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
 
     return {
         "algoritmo": "BM25",
@@ -192,8 +177,6 @@ def run_bm25(
         "ranks_por_query": resultados,
         "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
-        "memoria_peak_mb": peak / (1024 * 1024),
-        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -212,9 +195,7 @@ def run_cosine(
     embeddings_base = model.encode(base_conhecimento)
 
     # Medição apenas da execução das queries
-    tracemalloc.start()
     start_time = time.time()
-    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         embedding_query = model.encode(query)
@@ -233,9 +214,6 @@ def run_cosine(
         documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
-    cpu_end, mem_end = obter_process_info()
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
 
     return {
         "algoritmo": "Cosine Similarity",
@@ -243,8 +221,6 @@ def run_cosine(
         "ranks_por_query": resultados,
         "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
-        "memoria_peak_mb": peak / (1024 * 1024),
-        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -268,9 +244,7 @@ def run_faiss_cosine(
     index.add(embeddings)
 
     # Medição apenas da execução das queries
-    tracemalloc.start()
     start_time = time.time()
-    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         query_embedding = model.encode([query]).astype("float32")
@@ -287,9 +261,6 @@ def run_faiss_cosine(
         documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
-    cpu_end, mem_end = obter_process_info()
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
 
     return {
         "algoritmo": "FAISS Cosine",
@@ -297,8 +268,6 @@ def run_faiss_cosine(
         "ranks_por_query": resultados,
         "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
-        "memoria_peak_mb": peak / (1024 * 1024),
-        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -321,9 +290,7 @@ def run_faiss_euclidean(
     index.add(embeddings)
 
     # Medição apenas da execução das queries
-    tracemalloc.start()
     start_time = time.time()
-    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         query_embedding = model.encode([query]).astype("float32")
@@ -339,9 +306,6 @@ def run_faiss_euclidean(
         documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
-    cpu_end, mem_end = obter_process_info()
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
 
     return {
         "algoritmo": "FAISS Euclidean",
@@ -349,8 +313,6 @@ def run_faiss_euclidean(
         "ranks_por_query": resultados,
         "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
-        "memoria_peak_mb": peak / (1024 * 1024),
-        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -376,9 +338,7 @@ def run_chromadb(
     collection.add(embeddings=embeddings, documents=base_conhecimento, ids=ids)
 
     # Medição apenas da execução das queries
-    tracemalloc.start()
     start_time = time.time()
-    cpu_start, mem_start = obter_process_info()
 
     for query_idx, query in enumerate(queries):
         query_embedding = model.encode([query]).tolist()
@@ -396,9 +356,6 @@ def run_chromadb(
         documentos_ordenados_por_query.append(resultados_ordenados)
 
     end_time = time.time()
-    cpu_end, mem_end = obter_process_info()
-    current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
 
     return {
         "algoritmo": "ChromaDB",
@@ -406,8 +363,6 @@ def run_chromadb(
         "ranks_por_query": resultados,
         "documentos_ordenados_por_query": documentos_ordenados_por_query,
         "tempo_total": end_time - start_time,
-        "memoria_peak_mb": peak / (1024 * 1024),
-        "cpu_percent": abs(cpu_end - cpu_start),
     }
 
 
@@ -486,14 +441,14 @@ def gerar_relatorio(
     header = "| Modelo | Algoritmo | "
     for i, query in enumerate(queries):
         header += f"Query {i+1} | "
-    header += "Rank Médio | Tempo (s) | CPU (%) | Memória (MB) |"
+    header += "Rank Médio | Tempo Total (s) | Tempo Médio (s) |"
     linhas.append(header)
 
     # Separador
     separador = "|--------|-----------|"
     for _ in queries:
         separador += "--------|"
-    separador += "-----------|-----------|---------|--------------|"
+    separador += "-----------|-----------------|-----------------|"
     linhas.append(separador)
 
     # Linhas de dados
@@ -511,7 +466,9 @@ def gerar_relatorio(
         linha += f"**{rank_medio:.2f}** | "
 
         # Métricas de desempenho
-        linha += f"{res['tempo_total']:.3f} | {res['cpu_percent']:.1f} | {res['memoria_peak_mb']:.2f} |"
+        tempo_total = res['tempo_total']
+        tempo_medio = tempo_total / len(queries) if queries else 0
+        linha += f"{tempo_total:.3f} | {tempo_medio:.3f} |"
 
         linhas.append(linha)
 

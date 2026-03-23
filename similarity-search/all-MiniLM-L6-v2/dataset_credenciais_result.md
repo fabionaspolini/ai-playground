@@ -10,21 +10,25 @@
 
 Os valores por query, são os **ranks** de onde cada resposta útil foi calculada pelo algoritmo.
 
-| Modelo | Algoritmo | Query 1 | Query 2 | Query 3 | Rank Médio | Tempo (s) | CPU (%) | Memória (MB) |
-|--------|-----------|--------|--------|--------|-----------|-----------|---------|--------------|
-| N/A (lexical) | BM25 | 1, 2, 3, 5 | 1, 2, 7, 9 | 1, 2, 4, 6 | **3.58** | 0.001 | 0.0 | 0.04 |
-| sentence-transformers/all-MiniLM-L6-v2 | Cosine Similarity | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.040 | 0.0 | 0.05 |
-| sentence-transformers/all-MiniLM-L6-v2 | FAISS Cosine | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.045 | 0.0 | 0.05 |
-| sentence-transformers/all-MiniLM-L6-v2 | FAISS Euclidean | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.037 | 0.0 | 0.05 |
-| sentence-transformers/all-MiniLM-L6-v2 | ChromaDB | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.051 | 0.0 | 0.07 |
-| paraphrase-multilingual-MiniLM-L12-v2 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.058 | 0.0 | 0.05 |
-| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.058 | 0.0 | 0.05 |
-| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.057 | 0.0 | 0.05 |
-| paraphrase-multilingual-MiniLM-L12-v2 | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.074 | 0.0 | 0.06 |
-| neuralmind/bert-base-portuguese-cased | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.121 | 0.0 | 0.05 |
-| neuralmind/bert-base-portuguese-cased | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.123 | 0.0 | 0.05 |
-| neuralmind/bert-base-portuguese-cased | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.120 | 0.0 | 0.05 |
-| neuralmind/bert-base-portuguese-cased | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.154 | 0.0 | 0.07 |
+| Modelo | Algoritmo | Query 1 | Query 2 | Query 3 | Rank Médio | Tempo Total (s) | Tempo Médio (s) |
+|--------|-----------|--------|--------|--------|-----------|-----------------|-----------------|
+| N/A (lexical) | BM25 | 1, 2, 3, 5 | 1, 2, 7, 9 | 1, 2, 4, 6 | **3.58** | 0.000 | 0.000 |
+| sentence-transformers/all-MiniLM-L6-v2 | Cosine Similarity | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.024 | 0.008 |
+| sentence-transformers/all-MiniLM-L6-v2 | FAISS Cosine | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.023 | 0.008 |
+| sentence-transformers/all-MiniLM-L6-v2 | FAISS Euclidean | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.025 | 0.008 |
+| sentence-transformers/all-MiniLM-L6-v2 | ChromaDB | 1, 3, 4, 8 | 1, 3, 6, 8 | 1, 2, 4, 8 | **4.08** | 0.031 | 0.010 |
+| paraphrase-multilingual-MiniLM-L12-v2 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.050 | 0.017 |
+| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 6 | **2.75** | 0.047 | 0.016 |
+| paraphrase-multilingual-MiniLM-L12-v2 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.052 | 0.017 |
+| paraphrase-multilingual-MiniLM-L12-v2 | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 6 | **2.83** | 0.064 | 0.021 |
+| neuralmind/bert-base-portuguese-cased | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.117 | 0.039 |
+| neuralmind/bert-base-portuguese-cased | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 6 | 1, 2, 3, 5 | **2.75** | 0.125 | 0.042 |
+| neuralmind/bert-base-portuguese-cased | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.117 | 0.039 |
+| neuralmind/bert-base-portuguese-cased | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 5 | 1, 2, 3, 5 | **2.67** | 0.121 | 0.040 |
+| BAAI/bge-m3 | Cosine Similarity | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.416 | 0.139 |
+| BAAI/bge-m3 | FAISS Cosine | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.401 | 0.134 |
+| BAAI/bge-m3 | FAISS Euclidean | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.364 | 0.121 |
+| BAAI/bge-m3 | ChromaDB | 1, 2, 3, 4 | 1, 2, 3, 4 | 1, 2, 3, 4 | **2.50** | 0.406 | 0.135 |
 
 ## Consolidado por Modelo
 
@@ -35,11 +39,12 @@ Os valores por query, são os **ranks** de onde cada resposta útil foi calculad
 | sentence-transformers/all-MiniLM-L6-v2 | **4.08** |
 | paraphrase-multilingual-MiniLM-L12-v2 | **2.79** |
 | neuralmind/bert-base-portuguese-cased | **2.71** |
+| BAAI/bge-m3 | **2.50** |
 
 ## Conclusão
 
 
-O melhor desempenho foi de **FAISS Euclidean** com modelo **neuralmind/bert-base-portuguese-cased** (rank médio: **2.67**).
+O melhor desempenho foi de **Cosine Similarity** com modelo **BAAI/bge-m3** (rank médio: **2.50**).
 
 
 ## Top 10 Respostas Selecionadas pelo Algoritmo Vencedor
@@ -53,14 +58,14 @@ O melhor desempenho foi de **FAISS Euclidean** com modelo **neuralmind/bert-base
 
 | # | Resposta |
 |---|----------|
-| 1 | **Instruções para alterar sua credencial de acesso.** |
-| 2 | **Como resetar minha senha?** |
-| 3 | **Passo a passo para recuperação de conta e login.** |
-| 4 | **Atualização de credenciais** |
-| 5 | Onde encontro a nota fiscal? |
-| 6 | Passo a passo para trocar o e-mail. |
-| 7 | Política de reembolso e devolução. |
-| 8 | Comprar pão na padaria da esquina. |
+| 1 | **Como resetar minha senha?** |
+| 2 | **Instruções para alterar sua credencial de acesso.** |
+| 3 | **Atualização de credenciais** |
+| 4 | **Passo a passo para recuperação de conta e login.** |
+| 5 | Passo a passo para trocar o e-mail. |
+| 6 | Política de reembolso e devolução. |
+| 7 | Comprar pão na padaria da esquina. |
+| 8 | Onde encontro a nota fiscal? |
 | 9 | O tempo hoje está ensolarado. |
 
 *Nota: A base de conhecimento possui apenas 9 documento(s).*
@@ -71,12 +76,12 @@ O melhor desempenho foi de **FAISS Euclidean** com modelo **neuralmind/bert-base
 | # | Resposta |
 |---|----------|
 | 1 | **Como resetar minha senha?** |
-| 2 | **Passo a passo para recuperação de conta e login.** |
-| 3 | **Instruções para alterar sua credencial de acesso.** |
-| 4 | Onde encontro a nota fiscal? |
-| 5 | **Atualização de credenciais** |
-| 6 | Passo a passo para trocar o e-mail. |
-| 7 | Política de reembolso e devolução. |
+| 2 | **Instruções para alterar sua credencial de acesso.** |
+| 3 | **Passo a passo para recuperação de conta e login.** |
+| 4 | **Atualização de credenciais** |
+| 5 | Passo a passo para trocar o e-mail. |
+| 6 | Política de reembolso e devolução. |
+| 7 | Onde encontro a nota fiscal? |
 | 8 | Comprar pão na padaria da esquina. |
 | 9 | O tempo hoje está ensolarado. |
 
@@ -87,13 +92,13 @@ O melhor desempenho foi de **FAISS Euclidean** com modelo **neuralmind/bert-base
 
 | # | Resposta |
 |---|----------|
-| 1 | **Como resetar minha senha?** |
-| 2 | **Passo a passo para recuperação de conta e login.** |
+| 1 | **Passo a passo para recuperação de conta e login.** |
+| 2 | **Como resetar minha senha?** |
 | 3 | **Instruções para alterar sua credencial de acesso.** |
-| 4 | Passo a passo para trocar o e-mail. |
-| 5 | **Atualização de credenciais** |
-| 6 | Onde encontro a nota fiscal? |
-| 7 | Política de reembolso e devolução. |
+| 4 | **Atualização de credenciais** |
+| 5 | Passo a passo para trocar o e-mail. |
+| 6 | Política de reembolso e devolução. |
+| 7 | Onde encontro a nota fiscal? |
 | 8 | Comprar pão na padaria da esquina. |
 | 9 | O tempo hoje está ensolarado. |
 
