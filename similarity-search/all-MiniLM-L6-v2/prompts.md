@@ -4,4 +4,4 @@ Analise todos os arquivos com o prefixo "similarity_", eles possuem ao final os 
 
 Todos os casos de testes são iguais, 9  itens numa base de conhecido, e 3 testes comparando frases, apenas o método de similaridade de cada arquivo que é diferente.
 
-Você  deve montar uma tabela no arquivo @file:README.md exibindo  o rank de cada algoritmo, e ao final montar uma conclusão de qual se saiu melhor.
+Você deve montar uma tabela no arquivo @file:README.md exibindo  o rank de cada algoritmo, e ao final montar uma conclusão de qual se saiu melhor.

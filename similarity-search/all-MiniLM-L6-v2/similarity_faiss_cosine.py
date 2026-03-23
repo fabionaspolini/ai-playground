@@ -2,7 +2,10 @@ import faiss
 from sentence_transformers import SentenceTransformer
 
 # 1. Modelo e Dados
-model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+# model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2') # Treinado em inglês apenas
+# model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2') # Multilíngue (Evolução) - Dobro de camadas do L6, muito mais preciso em PT-BR.
+# model = SentenceTransformer('neuralmind/bert-base-portuguese-cased') # português
+model = SentenceTransformer('BAAI/bge-m3') # SOTA (Estado da Arte) - Modelo atual mais forte para múltiplos idiomas, incluindo PT-BR.
 base_conhecimento = [
     "Instruções para alterar sua credencial de acesso.",
     "O tempo hoje está ensolarado.",
@@ -25,9 +28,9 @@ index = faiss.IndexFlatIP(d)
 index.add(embeddings)
 
 # 4. Preparar e Normalizar a Consulta
-# query = "Esqueci minha credencial de acesso"
+query = "Esqueci minha credencial de acesso"
 # query = "Como posso resetar minha senha?"
-query = "perdi meu acesso e login"
+# query = "perdi meu acesso e login"
 query_embedding = model.encode([query]).astype('float32')
 faiss.normalize_L2(query_embedding) # Normaliza o vetor da consulta
 
@@ -39,6 +42,10 @@ scores, indices = index.search(query_embedding, k)
 print(f"Consulta: {query}\n")
 for i, idx in enumerate(indices[0]):
     print(f"Top {i+1}: {base_conhecimento[idx]} (Score: {scores[0][i]:.4f})")
+
+#
+# sentence-transformers/all-MiniLM-L6-v2
+#
 
 # query = "Esqueci minha credencial de acesso"
 # Top 1: Instruções para alterar sua credencial de acesso. (Score: 0.6863) <----- Útil 1
@@ -72,3 +79,41 @@ for i, idx in enumerate(indices[0]):
 # Top 7: Comprar pão na padaria da esquina. (Score: 0.3529)
 # Top 8: Atualização de credenciais (Score: 0.2820) <----- Útil 8
 # Top 9: Onde encontro a nota fiscal? (Score: 0.2501)
+
+
+#
+# BAAI/bge-m3
+#
+
+# query = "Esqueci minha credencial de acesso"
+# Top 1: Como resetar minha senha? (Score: 0.7715) <----- Útil 1
+# Top 2: Instruções para alterar sua credencial de acesso. (Score: 0.7699) <----- Útil 2
+# Top 3: Atualização de credenciais (Score: 0.7436) <----- Útil 3
+# Top 4: Passo a passo para recuperação de conta e login. (Score: 0.6882) <----- Útil 4
+# Top 5: Passo a passo para trocar o e-mail. (Score: 0.5505)
+# Top 6: Política de reembolso e devolução. (Score: 0.5310)
+# Top 7: Comprar pão na padaria da esquina. (Score: 0.4873)
+# Top 8: Onde encontro a nota fiscal? (Score: 0.4764)
+# Top 9: O tempo hoje está ensolarado. (Score: 0.4144)
+
+# query = "Como posso resetar minha senha?"
+# Top 1: Como resetar minha senha? (Score: 0.9872) <----- Útil 1
+# Top 2: Instruções para alterar sua credencial de acesso. (Score: 0.7303) <----- Útil 2
+# Top 3: Passo a passo para recuperação de conta e login. (Score: 0.7139) <----- Útil 3
+# Top 4: Atualização de credenciais (Score: 0.6611) <----- Útil 4
+# Top 5: Passo a passo para trocar o e-mail. (Score: 0.5986)
+# Top 6: Política de reembolso e devolução. (Score: 0.5563)
+# Top 7: Onde encontro a nota fiscal? (Score: 0.4549)
+# Top 8: Comprar pão na padaria da esquina. (Score: 0.4099)
+# Top 9: O tempo hoje está ensolarado. (Score: 0.4021)
+
+# query = "perdi meu acesso e login"
+# Top 1: Passo a passo para recuperação de conta e login. (Score: 0.7726) <----- Útil 1
+# Top 2: Como resetar minha senha? (Score: 0.7590) <----- Útil 2
+# Top 3: Instruções para alterar sua credencial de acesso. (Score: 0.7064) <----- Útil 3
+# Top 4: Atualização de credenciais (Score: 0.6403) <----- Útil 4
+# Top 5: Passo a passo para trocar o e-mail. (Score: 0.5469)
+# Top 6: Política de reembolso e devolução. (Score: 0.5282)
+# Top 7: Onde encontro a nota fiscal? (Score: 0.4496)
+# Top 8: Comprar pão na padaria da esquina. (Score: 0.4435)
+# Top 9: O tempo hoje está ensolarado. (Score: 0.3836)

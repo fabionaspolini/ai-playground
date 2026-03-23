@@ -19,7 +19,7 @@ Desempenho: Muito rápido.
 
 ---
 
-## Resultados dos Testes
+## Resultados dos Testes - all-MiniLM-L6-v2
 
 Foram realizados 3 testes de consulta com 9 itens na base de conhecimento. Abaixo, o **rank médio** de cada algoritmo considerando apenas os resultados marcados como **úteis**:
 
@@ -47,6 +47,16 @@ O **BM25 (busca lexical)** teve o melhor desempenho geral com rank médio de **3
    - Use **BM25** para buscas diretas com termos específicos.
    - Use **métodos semânticos** para entender contexto, intenções e variações linguísticas.
 
-### Porque semântica foi pior que léxico com all-MiniLM-L6-v2?
+## Modelos
 
+### all-MiniLM-L6-v2
 Modelo treinado em inglês, por isso o mal resultado em português.
+
+### paraphrase-multilingual-MiniLM-L12-v2
+
+Multilíngue (Evolução) - Dobro de camadas do L6, muito mais preciso em PT-BR.
+
+### Principais Modelos para Português (PT-BR)
+- **BERTimbau (NeuralMind)** → `neuralmind/bert-base-portuguese-cased`: É o padrão ouro para PT-BR. Existe nas versões base e large. Para Sentence-Transformers, utilizamos versões dele ajustadas para similaridade (STS).
+- **Sentence-BERT-PT**: Modelos baseados no BERTimbau afinados em datasets como o ASSIN2 (o principal benchmark de similaridade semântica em português).
+- **BGE-Small-pt (ou variantes)* → `BAAI/bge-m3`*: Embora o BGE seja multilíngue, versões destiladas com foco em português têm surgido no Hugging Face com excelente performance em RAG. Modelo atual mais forte para múltiplos idiomas, incluindo PT-BR.
