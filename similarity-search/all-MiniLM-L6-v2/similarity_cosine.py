@@ -4,8 +4,8 @@ from sentence_transformers import SentenceTransformer, util
 model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 # 2. Dados de entrada
-# usuario_msg = "Como posso resetar minha senha?"
 # usuario_msg = "Esqueci minha credencial de acesso"
+# usuario_msg = "Como posso resetar minha senha?"
 usuario_msg = "perdi meu acesso e login"
 base_conhecimento = [
     "Instruções para alterar sua credencial de acesso.",
@@ -37,17 +37,6 @@ resultados = sorted(resultados, key=lambda x: x['score'], reverse=True)
 for i, res in enumerate(resultados):
     print(f"Top {i+1} | Score: {res['score']:.4f} | Texto: {res['texto']}")
 
-# usuario_msg = "Como posso resetar minha senha?"
-# Top 1 | Score: 0.9392 | Texto: Como resetar minha senha? <----- Útil 1
-# Top 2 | Score: 0.5184 | Texto: O tempo hoje está ensolarado.
-# Top 3 | Score: 0.4877 | Texto: Instruções para alterar sua credencial de acesso. <----- Útil 3
-# Top 4 | Score: 0.4702 | Texto: Passo a passo para trocar o e-mail.
-# Top 5 | Score: 0.4398 | Texto: Comprar pão na padaria da esquina.
-# Top 6 | Score: 0.4279 | Texto: Passo a passo para recuperação de conta e login. <----- Útil 6
-# Top 7 | Score: 0.3833 | Texto: Política de reembolso e devolução.
-# Top 8 | Score: 0.3787 | Texto: Atualização de credenciais <----- Útil 8
-# Top 9 | Score: 0.3268 | Texto: Onde encontro a nota fiscal?
-
 # usuario_msg = "Esqueci minha credencial de acesso"
 # Top 1 | Score: 0.6863 | Texto: Instruções para alterar sua credencial de acesso. <----- Útil 1
 # Top 2 | Score: 0.5589 | Texto: Comprar pão na padaria da esquina.
@@ -58,6 +47,17 @@ for i, res in enumerate(resultados):
 # Top 7 | Score: 0.4084 | Texto: Passo a passo para trocar o e-mail.
 # Top 8 | Score: 0.3361 | Texto: Passo a passo para recuperação de conta e login.  <----- Útil 8
 # Top 9 | Score: 0.2772 | Texto: Onde encontro a nota fiscal?
+
+# usuario_msg = "Como posso resetar minha senha?"
+# Top 1 | Score: 0.9392 | Texto: Como resetar minha senha? <----- Útil 1
+# Top 2 | Score: 0.5184 | Texto: O tempo hoje está ensolarado.
+# Top 3 | Score: 0.4877 | Texto: Instruções para alterar sua credencial de acesso. <----- Útil 3
+# Top 4 | Score: 0.4702 | Texto: Passo a passo para trocar o e-mail.
+# Top 5 | Score: 0.4398 | Texto: Comprar pão na padaria da esquina.
+# Top 6 | Score: 0.4279 | Texto: Passo a passo para recuperação de conta e login. <----- Útil 6
+# Top 7 | Score: 0.3833 | Texto: Política de reembolso e devolução.
+# Top 8 | Score: 0.3787 | Texto: Atualização de credenciais <----- Útil 8
+# Top 9 | Score: 0.3268 | Texto: Onde encontro a nota fiscal?
 
 # usuario_msg = "perdi meu acesso e login"
 # Top 1 | Score: 0.5938 | Texto: Passo a passo para recuperação de conta e login. <----- Útil 1

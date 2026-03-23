@@ -46,7 +46,7 @@ for i, doc in enumerate(top_n):
 # Top 2: Como resetar minha senha? (Score: 1.9992) <----- Útil 2
 # Top 3: Atualização de credenciais (Score: 0.2546) <----- Útil 3
 # Top 4: Política de reembolso e devolução. (Score: 0.2119)
-# Top 5: Passo a passo para recuperação de conta e login. (Score: 0.1587) <----- Útil 4
+# Top 5: Passo a passo para recuperação de conta e login. (Score: 0.1587) <----- Útil 5
 # Top 6: Onde encontro a nota fiscal? (Score: 0.0000)
 # Top 7: Passo a passo para trocar o e-mail. (Score: 0.0000)
 # Top 8: Comprar pão na padaria da esquina. (Score: 0.0000)
