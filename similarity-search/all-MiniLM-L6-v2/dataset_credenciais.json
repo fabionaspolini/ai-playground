@@ -1,0 +1,23 @@
+{
+  "base_conhecimento": [
+    "Instruções para alterar sua credencial de acesso.",
+    "O tempo hoje está ensolarado.",
+    "Passo a passo para recuperação de conta e login.",
+    "Comprar pão na padaria da esquina.",
+    "Como resetar minha senha?",
+    "Onde encontro a nota fiscal?",
+    "Passo a passo para trocar o e-mail.",
+    "Política de reembolso e devolução.",
+    "Atualização de credenciais"
+  ],
+  "queries": [
+    "Esqueci minha credencial de acesso",
+    "Como posso resetar minha senha?",
+    "perdi meu acesso e login"
+  ],
+  "respostas_uteis": [
+    [0, 2, 4, 8],
+    [0, 2, 4, 8],
+    [0, 2, 4, 8]
+  ]
+}
