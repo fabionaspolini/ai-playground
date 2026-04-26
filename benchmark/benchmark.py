@@ -6,11 +6,14 @@ client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 def benchmark():
     start_time = time.time()
 
-    prompt = "Gerar 25 palavas aleatórias. Retorne apenas as palavras separadas por vírgula"
-    # prompt = "Escreva um texto longo sobre computação quântica."
+    # prompt = "Gerar 25 palavas aleatórias. Retorne apenas as palavras separadas por vírgula"
+    prompt = "Escreva um texto sobre computação quântica de até 100 palavras."
+
+    model = "qwen3.5:9b"
+    # model = "qwen2.5-coder-7b-instruct"
 
     response = client.chat.completions.create(
-        model="qwen3.5:9b",
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         stream=False
     )
