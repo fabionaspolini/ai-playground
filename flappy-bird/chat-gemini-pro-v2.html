@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Bird Clone</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            display: block;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #score-display {
+            position: absolute;
+            top: 10%;
+            font-size: 60px;
+            font-weight: bold;
+            color: white;
+            -webkit-text-stroke: 2px black;
+            text-shadow: 2px 2px 0 #000;
+        }
+        #game-over-modal {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            border: 4px solid #333;
+            text-align: center;
+            pointer-events: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        #game-over-modal h1 { margin: 0 0 15px 0; color: #d9534f; font-size: 32px; }
+        #game-over-modal p { margin: 10px 0; font-size: 20px; color: #333; font-weight: bold; }
+        button {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 20px;
+            cursor: pointer;
+            background-color: #e67e22;
+            color: white;
+            border: 3px solid #d35400;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+<div id="ui-layer">
+    <div id="score-display">0</div>
+    <div id="game-over-modal">
+        <h1>Game Over</h1>
+        <p>Pontuação: <span id="final-score">0</span></p>
+        <p>Recorde: <span id="high-score">0</span></p>
+        <button id="restart-btn">Jogar Novamente</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score-display');
+    const modal = document.getElementById('game-over-modal');
+    const finalScoreEl = document.getElementById('final-score');
+    const highScoreEl = document.getElementById('high-score');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // Constantes do jogo
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 600;
+
+    // Responsividade: Mantém a proporção e ajusta ao tamanho da tela
+    function resizeCanvas() {
+        const scale = Math.min(window.innerWidth / GAME_WIDTH, window.innerHeight / GAME_HEIGHT);
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+        canvas.style.width = `${GAME_WIDTH * scale}px`;
+        canvas.style.height = `${GAME_HEIGHT * scale}px`;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Bird {
+        constructor() {
+            this.width = 34;
+            this.height = 24;
+            this.x = GAME_WIDTH / 3;
+            this.y = GAME_HEIGHT / 2;
+            this.velocity = 0;
+            this.gravity = 0.6;
+            this.jumpStrength = -9;
+        }
+
+        jump() {
+            this.velocity = this.jumpStrength;
+        }
+
+        update() {
+            this.velocity += this.gravity;
+            this.y += this.velocity;
+        }
+
+        draw(ctx) {
+            // Corpo do pássaro
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+            // Olho
+            ctx.fillStyle = 'white';
+            ctx.fillRect(this.x + 22, this.y + 4, 8, 8);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(this.x + 26, this.y + 6, 4, 4);
+
+            // Bico
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(this.x + 28, this.y + 12, 12, 8);
+            ctx.strokeRect(this.x + 28, this.y + 12, 12, 8);
+        }
+    }
+
+    class Pipe {
+        constructor(x) {
+            this.x = x;
+            this.width = 60;
+            this.gap = 150;
+            this.topHeight = Math.random() * (GAME_HEIGHT - this.gap - 120) + 60;
+            this.bottomY = this.topHeight + this.gap;
+            this.speed = 3.5;
+            this.passed = false;
+        }
+
+        update() {
+            this.x -= this.speed;
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = '#2ecc71';
+            ctx.strokeStyle = '#27ae60';
+            ctx.lineWidth = 4;
+
+            // Cano superior
+            ctx.fillRect(this.x, 0, this.width, this.topHeight);
+            ctx.strokeRect(this.x, -2, this.width, this.topHeight + 2);
+
+            // Borda do cano superior
+            ctx.fillRect(this.x - 4, this.topHeight - 20, this.width + 8, 20);
+            ctx.strokeRect(this.x - 4, this.topHeight - 20, this.width + 8, 20);
+
+            // Cano inferior
+            ctx.fillRect(this.x, this.bottomY, this.width, GAME_HEIGHT - this.bottomY);
+            ctx.strokeRect(this.x, this.bottomY, this.width, GAME_HEIGHT - this.bottomY + 2);
+
+            // Borda do cano inferior
+            ctx.fillRect(this.x - 4, this.bottomY, this.width + 8, 20);
+            ctx.strokeRect(this.x - 4, this.bottomY, this.width + 8, 20);
+        }
+
+        checkCollision(bird) {
+            // AABB Collision
+            const hitTop = bird.x < this.x + this.width && bird.x + bird.width > this.x && bird.y < this.topHeight;
+            const hitBottom = bird.x < this.x + this.width && bird.x + bird.width > this.x && bird.y + bird.height > this.bottomY;
+            return hitTop || hitBottom;
+        }
+    }
+
+    class Game {
+        constructor() {
+            this.bird = new Bird();
+            this.pipes = [];
+            this.score = 0;
+            this.frames = 0;
+            this.isGameOver = false;
+            this.animationId = null;
+            this.highScore = parseInt(localStorage.getItem('flappyHighScore')) || 0;
+
+            this.spawnPipe(GAME_WIDTH + 100);
+        }
+
+        spawnPipe(x) {
+            this.pipes.push(new Pipe(x));
+        }
+
+        update() {
+            if (this.isGameOver) return;
+
+            this.frames++;
+            this.bird.update();
+
+            // Colisão com chão e teto
+            if (this.bird.y + this.bird.height >= GAME_HEIGHT - 30 || this.bird.y < 0) {
+                this.gameOver();
+            }
+
+            // Spawner de canos
+            if (this.frames % 100 === 0) {
+                this.spawnPipe(GAME_WIDTH);
+            }
+
+            for (let i = this.pipes.length - 1; i >= 0; i--) {
+                const pipe = this.pipes[i];
+                pipe.update();
+
+                // Checagem de colisão
+                if (pipe.checkCollision(this.bird)) {
+                    this.gameOver();
+                }
+
+                // Pontuação
+                if (!pipe.passed && this.bird.x > pipe.x + pipe.width) {
+                    this.score++;
+                    scoreDisplay.innerText = this.score;
+                    pipe.passed = true;
+                }
+
+                // Limpeza de memória
+                if (pipe.x + pipe.width < 0) {
+                    this.pipes.splice(i, 1);
+                }
+            }
+        }
+
+        draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            this.pipes.forEach(pipe => pipe.draw(ctx));
+
+            // Desenhar chão
+            ctx.fillStyle = '#ded895';
+            ctx.fillRect(0, GAME_HEIGHT - 30, GAME_WIDTH, 30);
+            ctx.strokeStyle = '#c4b85c';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, GAME_HEIGHT - 30, GAME_WIDTH, 30);
+
+            this.bird.draw(ctx);
+        }
+
+        loop() {
+            this.update();
+            this.draw();
+
+            if (!this.isGameOver) {
+                this.animationId = requestAnimationFrame(() => this.loop());
+            }
+        }
+
+        gameOver() {
+            this.isGameOver = true;
+            if (this.score > this.highScore) {
+                this.highScore = this.score;
+                localStorage.setItem('flappyHighScore', this.highScore);
+            }
+
+            finalScoreEl.innerText = this.score;
+            highScoreEl.innerText = this.highScore;
+            modal.style.display = 'block';
+            scoreDisplay.style.display = 'none';
+        }
+
+        start() {
+            this.loop();
+        }
+    }
+
+    let currentGame;
+
+    function init() {
+        modal.style.display = 'none';
+        scoreDisplay.style.display = 'block';
+        scoreDisplay.innerText = '0';
+
+        if (currentGame && currentGame.animationId) {
+            cancelAnimationFrame(currentGame.animationId);
+        }
+
+        currentGame = new Game();
+        currentGame.start();
+    }
+
+    // Controles Globais
+    function handleInput(e) {
+        if (e.type === 'keydown' && e.code !== 'Space') return;
+        if (currentGame && !currentGame.isGameOver) {
+            e.preventDefault();
+            currentGame.bird.jump();
+        }
+    }
+
+    window.addEventListener('keydown', handleInput);
+    window.addEventListener('mousedown', handleInput);
+    window.addEventListener('touchstart', handleInput, { passive: false });
+
+    restartBtn.addEventListener('click', init);
+
+    // Inicializa o jogo
+    init();
+
+</script>
+</body>
+</html>
