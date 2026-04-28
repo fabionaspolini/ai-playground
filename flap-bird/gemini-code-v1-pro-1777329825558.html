@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Clone</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #2c3e50;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 3 / 4.5;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #e0f6ff 100%);
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-over {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px 40px;
+            border-radius: 10px;
+            color: white;
+            pointer-events: auto;
+            text-align: center;
+        }
+
+        #game-over h1 {
+            margin: 0 0 15px 0;
+            font-size: 28px;
+            color: #e74c3c;
+        }
+
+        #game-over p {
+            margin: 5px 0;
+            font-size: 18px;
+        }
+
+        #game-over button {
+            margin-top: 20px;
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: #2ecc71;
+            color: white;
+            border-radius: 5px;
+            text-transform: uppercase;
+            transition: background 0.2s;
+        }
+
+        #game-over button:hover {
+            background: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-layer">
+            <div id="game-over">
+                <h1>Game Over</h1>
+                <p>Pontuação: <span id="final-score">0</span></p>
+                <p>Recorde: <span id="best-score">0</span></p>
+                <button id="restart-btn">Jogar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverModal = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+        const bestScoreEl = document.getElementById('best-score');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Resolução interna fixa para manter a lógica consistente independente do tamanho da tela
+        canvas.width = 320;
+        canvas.height = 480;
+
+        // Estado Global
+        let frames = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('flappyHighScore') || 0;
+        let gameState = 'START'; // START, PLAYING, GAMEOVER
+        const GROUND_HEIGHT = 25;
+
+        class Bird {
+            constructor() {
+                this.w = 24;
+                this.h = 24;
+                this.x = 50;
+                this.y = canvas.height / 2;
+                this.velocity = 0;
+                this.gravity = 0.25;
+                this.jump = -4.8;
+            }
+
+            draw() {
+                // Corpo do pássaro
+                ctx.fillStyle = '#f1c40f';
+                ctx.fillRect(this.x, this.y, this.w, this.h);
+                
+                // Olho
+                ctx.fillStyle = 'white';
+                ctx.fillRect(this.x + 14, this.y + 4, 8, 8);
+                ctx.fillStyle = 'black';
+                ctx.fillRect(this.x + 18, this.y + 6, 4, 4);
+                
+                // Bico
+                ctx.fillStyle = '#e67e22';
+                ctx.fillRect(this.x + 20, this.y + 12, 10, 8);
+            }
+
+            update() {
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+
+                // Colisão com o chão
+                if (this.y + this.h >= canvas.height - GROUND_HEIGHT) {
+                    this.y = canvas.height - GROUND_HEIGHT - this.h;
+                    triggerGameOver();
+                }
+
+                // Teto invisível (evita sair por cima)
+                if (this.y < 0) {
+                    this.y = 0;
+                    this.velocity = 0;
+                }
+            }
+
+            flap() {
+                this.velocity = this.jump;
+            }
+        }
+
+        class Pipe {
+            constructor() {
+                this.w = 45;
+                this.gap = 120; // Espaçamento vertical
+                this.x = canvas.width;
+                this.speed = 2.5;
+                this.passed = false;
+
+                // Geração procedural da altura
+                this.minHeight = 40;
+                this.maxHeight = canvas.height - GROUND_HEIGHT - this.gap - this.minHeight;
+                this.topHeight = Math.floor(Math.random() * (this.maxHeight - this.minHeight + 1)) + this.minHeight;
+                this.bottomY = this.topHeight + this.gap;
+            }
+
+            draw() {
+                ctx.fillStyle = '#2ecc71';
+                // Cano superior
+                ctx.fillRect(this.x, 0, this.w, this.topHeight);
+                // Borda cano superior
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(this.x - 2, this.topHeight - 15, this.w + 4, 15);
+
+                ctx.fillStyle = '#2ecc71';
+                // Cano inferior
+                ctx.fillRect(this.x, this.bottomY, this.w, canvas.height - GROUND_HEIGHT - this.bottomY);
+                // Borda cano inferior
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(this.x - 2, this.bottomY, this.w + 4, 15);
+            }
+
+            update() {
+                this.x -= this.speed;
+            }
+        }
+
+        // Instâncias
+        let bird = new Bird();
+        let pipes = [];
+
+        function init() {
+            bird = new Bird();
+            pipes = [];
+            score = 0;
+            frames = 0;
+            gameState = 'START';
+            gameOverModal.style.display = 'none';
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('flappyHighScore', highScore);
+            }
+            finalScoreEl.innerText = score;
+            bestScoreEl.innerText = highScore;
+            gameOverModal.style.display = 'flex';
+        }
+
+        function checkCollision(pipe) {
+            // AABB Collision Detection
+            if (bird.x < pipe.x + pipe.w &&
+                bird.x + bird.w > pipe.x &&
+                (bird.y < pipe.topHeight || bird.y + bird.h > pipe.bottomY)) {
+                triggerGameOver();
+            }
+        }
+
+        function handleInput(e) {
+            // Previne comportamento padrão (como zoom duplo no mobile)
+            if(e.type === 'touchstart') e.preventDefault(); 
+            
+            // Ignora outras teclas que não o Espaço
+            if (e.type === 'keydown' && e.code !== 'Space') return;
+
+            if (gameState === 'START') {
+                gameState = 'PLAYING';
+                bird.flap();
+            } else if (gameState === 'PLAYING') {
+                bird.flap();
+            } else if (gameState === 'GAMEOVER') {
+                if (e.type === 'keydown' && e.code === 'Space') {
+                    init();
+                }
+            }
+        }
+
+        // Listeners
+        window.addEventListener('keydown', handleInput);
+        canvas.addEventListener('mousedown', handleInput);
+        canvas.addEventListener('touchstart', handleInput, { passive: false });
+        restartBtn.addEventListener('click', init);
+
+        function drawBackground() {
+            // Desenha o chão
+            ctx.fillStyle = '#ded895';
+            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, GROUND_HEIGHT);
+            
+            // Linha da grama no chão
+            ctx.fillStyle = '#73bf2e';
+            ctx.fillRect(0, canvas.height - GROUND_HEIGHT, canvas.width, 6);
+        }
+
+        function drawUI() {
+            if (gameState === 'START') {
+                ctx.fillStyle = 'black';
+                ctx.font = 'bold 20px Tahoma';
+                ctx.textAlign = 'center';
+                ctx.fillText('Toque ou Espaço', canvas.width / 2, canvas.height / 2 + 50);
+            }
+
+            if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 4;
+                ctx.font = 'bold 40px Impact';
+                ctx.textAlign = 'center';
+                
+                // Sombra e texto do placar
+                ctx.strokeText(score, canvas.width / 2, 60);
+                ctx.fillText(score, canvas.width / 2, 60);
+            }
+        }
+
+        function gameLoop() {
+            // Limpa o canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawBackground();
+
+            if (gameState === 'PLAYING') {
+                bird.update();
+                
+                // Gera novos canos
+                if (frames % 100 === 0) {
+                    pipes.push(new Pipe());
+                }
+                
+                pipes.forEach((pipe, index) => {
+                    pipe.update();
+                    pipe.draw();
+                    checkCollision(pipe);
+                    
+                    // Lógica de pontuação
+                    if (!pipe.passed && bird.x > pipe.x + pipe.w) {
+                        score++;
+                        pipe.passed = true;
+                    }
+                    
+                    // Remove canos fora da tela para liberar memória
+                    if (pipe.x + pipe.w < 0) {
+                        pipes.splice(index, 1);
+                    }
+                });
+            } else if (gameState === 'GAMEOVER') {
+                // Desenha os canos estáticos no Game Over
+                pipes.forEach(pipe => pipe.draw());
+            } else if (gameState === 'START') {
+                // Levitação leve no início
+                bird.y = (canvas.height / 2) + Math.sin(frames * 0.1) * 5; 
+            }
+
+            bird.draw();
+            drawUI();
+            
+            frames++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Inicia o jogo
+        gameLoop();
+    </script>
+</body>
+</html>
