@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird Clone - Vanilla JS</title>
+    <style>
+        /* Reset e Estilização Básica */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* Previne seleção de texto ao clicar */
+        }
+
+        body {
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Container do Jogo para centralizar e limitar tamanho em telas grandes */
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 480px; /* Largura máxima estilo mobile */
+            height: 100%;
+            max-height: 800px;
+            background-color: #70c5ce; /* Cor do céu */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Interface de Pontuação (HUD) */
+        #score-display {
+            position: absolute;
+            top: 10%;
+            width: 100%;
+            text-align: center;
+            font-size: 3rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Modal de Game Over */
+        #game-over-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        #game-over-modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: #ded895;
+            border: 4px solid #543847;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 80%;
+            box-shadow: 5px 5px 0 #000;
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            color: #e86101;
+            margin-bottom: 15px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .score-board {
+            background: #cbb968;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 2px solid #543847;
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            color: #e86101;
+            font-weight: bold;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            color: white;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        /* Botão de Reiniciar */
+        #restart-btn {
+            background-color: #e86101;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            border: 2px solid white;
+            box-shadow: 0 4px 0 #9e4200;
+            transition: transform 0.1s;
+        }
+
+        #restart-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #9e4200;
+        }
+
+        /* Instrução inicial */
+        #start-message {
+            position: absolute;
+            bottom: 20%;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #000;
+            animation: bounce 1s infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="score-display">0</div>
+        <div id="start-message">Pressione Espaço ou Clique</div>
+
+        <div id="game-over-modal">
+            <div class="modal-content">
+                <div class="modal-title">Game Over</div>
+                <div class="score-board">
+                    <div class="score-label">PLACAR</div>
+                    <div class="score-value" id="final-score">0</div>
+                    <br>
+                    <div class="score-label">MELHOR</div>
+                    <div class="score-value" id="best-score">0</div>
+                </div>
+                <button id="restart-btn">JOGAR NOVAMENTE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * FLAPPY BIRD CLONE - VANILLA JS
+         * Arquitetura: Classes ES6 + Game Loop
+         */
+
+        // --- Configurações Globais ---
+        const CONFIG = {
+            gravity: 0.25,
+            jumpStrength: 4.6,
+            speed: 2, // Velocidade do cenário
+            pipeSpawnRate: 100, // Frames entre canos
+            pipeGap: 100, // Espaço vertical entre canos
+            groundHeight: 112 // Altura do chão
+        };
+
+        // --- Classes do Jogo ---
+
+        class Bird {
+            constructor(canvasHeight) {
+                this.width = 34;
+                this.height = 24;
+                this.x = 50;
+                this.y = canvasHeight / 2;
+                this.velocity = 0;
+                this.radius = 12; // Para colisão circular aproximada
+                this.rotation = 0;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Rotação baseada na velocidade
+                this.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (this.velocity * 0.1)));
+                ctx.rotate(this.rotation);
+
+                // Corpo do pássaro (Amarelo)
+                ctx.fillStyle = "#FFD700";
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+
+                // Borda
+                ctx.strokeStyle = "#000";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-this.width/2, -this.height/2, this.width, this.height);
+
+                // Olho
+                ctx.fillStyle = "#FFF";
+                ctx.fillRect(6, -8, 10, 10);
+                ctx.strokeRect(6, -8, 10, 10);
+                ctx.fillStyle = "#000"; // Pupila
+                ctx.fillRect(12, -6, 2, 2);
+
+                // Bico
+                ctx.fillStyle = "#FFA500";
+                ctx.fillRect(8, 2, 12, 8);
+                ctx.strokeRect(8, 2, 12, 8);
+
+                // Asa
+                ctx.fillStyle = "#FFF";
+                ctx.fillRect(-10, 0, 14, 8);
+                ctx.strokeRect(-10, 0, 14, 8);
+
+                ctx.restore();
+            }
+
+            update() {
+                this.velocity += CONFIG.gravity;
+                this.y += this.velocity;
+            }
+
+            jump() {
+                this.velocity = -CONFIG.jumpStrength;
+            }
+
+            reset(canvasHeight) {
+                this.y = canvasHeight / 2;
+                this.velocity = 0;
+                this.rotation = 0;
+            }
+        }
+
+        class Pipe {
+            constructor(canvasWidth, canvasHeight) {
+                this.x = canvasWidth;
+                this.width = 52;
+                // Posição aleatória do cano superior
+                const minHeight = 50;
+                const maxHeight = canvasHeight - CONFIG.groundHeight - CONFIG.pipeGap - minHeight;
+                this.topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+                this.bottomY = this.topHeight + CONFIG.pipeGap;
+                this.passed = false;
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = "#73BF2E"; // Verde claro
+                ctx.strokeStyle = "#558c22"; // Borda verde escuro
+                ctx.lineWidth = 2;
+
+                // Cano Superior
+                ctx.fillRect(this.x, 0, this.width, this.topHeight);
+                ctx.strokeRect(this.x, 0, this.width, this.topHeight);
+
+                // Borda do cano superior (Cap)
+                ctx.fillRect(this.x - 2, this.topHeight - 20, this.width + 4, 20);
+                ctx.strokeRect(this.x - 2, this.topHeight - 20, this.width + 4, 20);
+
+                // Cano Inferior
+                const bottomHeight = ctx.canvas.height - this.bottomY - CONFIG.groundHeight;
+                ctx.fillRect(this.x, this.bottomY, this.width, bottomHeight);
+                ctx.strokeRect(this.x, this.bottomY, this.width, bottomHeight);
+
+                // Borda do cano inferior (Cap)
+                ctx.fillRect(this.x - 2, this.bottomY, this.width + 4, 20);
+                ctx.strokeRect(this.x - 2, this.bottomY, this.width + 4, 20);
+            }
+
+            update() {
+                this.x -= CONFIG.speed;
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById('game-container');
+
+                // Elementos UI
+                this.scoreEl = document.getElementById('score-display');
+                this.modalEl = document.getElementById('game-over-modal');
+                this.finalScoreEl = document.getElementById('final-score');
+                this.bestScoreEl = document.getElementById('best-score');
+                this.startMsgEl = document.getElementById('start-message');
+                this.restartBtn = document.getElementById('restart-btn');
+
+                // Estado do Jogo
+                this.state = 'START'; // START, PLAYING, GAMEOVER
+                this.score = 0;
+                this.highScore = localStorage.getItem('flappyHighScore') || 0;
+                this.frames = 0;
+
+                // Objetos
+                this.bird = null;
+                this.pipes = [];
+                this.groundX = 0;
+
+                this.resize();
+                this.bindEvents();
+
+                // Inicializa loop
+                this.loop = this.loop.bind(this);
+                requestAnimationFrame(this.loop);
+            }
+
+            resize() {
+                // Ajusta o canvas para o tamanho do container pai
+                this.canvas.width = this.container.clientWidth;
+                this.canvas.height = this.container.clientHeight;
+
+                // Se o jogo não começou, inicializa o pássaro
+                if (!this.bird) {
+                    this.bird = new Bird(this.canvas.height);
+                } else {
+                    // Se redimensionar, ajusta posição do chão se necessário
+                    this.bird.y = Math.min(this.bird.y, this.canvas.height - CONFIG.groundHeight - this.bird.height/2);
+                }
+            }
+
+            bindEvents() {
+                // Redimensionamento
+                window.addEventListener('resize', () => this.resize());
+
+                // Controles (Teclado e Mouse/Touch)
+                const action = (e) => {
+                    if (e.type === 'keydown' && e.code !== 'Space') return;
+                    if (e.type === 'keydown') e.preventDefault(); // Previne scroll da tela
+
+                    if (this.state === 'START') {
+                        this.startGame();
+                    } else if (this.state === 'PLAYING') {
+                        this.bird.jump();
+                        this.startMsgEl.style.display = 'none';
+                    }
+                };
+
+                window.addEventListener('keydown', action);
+                this.container.addEventListener('mousedown', action);
+                this.container.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Previne zoom/scroll
+                    action(e);
+                }, { passive: false });
+
+                // Botão Reiniciar
+                this.restartBtn.addEventListener('click', () => this.resetGame());
+            }
+
+            startGame() {
+                this.state = 'PLAYING';
+                this.score = 0;
+                this.scoreEl.innerText = this.score;
+                this.startMsgEl.style.display = 'none';
+                this.pipes = [];
+                this.frames = 0;
+                this.bird.reset(this.canvas.height);
+            }
+
+            resetGame() {
+                this.modalEl.classList.remove('active');
+                this.startGame();
+            }
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+
+                // Atualiza High Score
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('flappyHighScore', this.highScore);
+                }
+
+                // Atualiza UI
+                this.finalScoreEl.innerText = this.score;
+                this.bestScoreEl.innerText = this.highScore;
+                this.modalEl.classList.add('active');
+            }
+
+            checkCollision(bird, pipe) {
+                // AABB Collision (Retângulo com Retângulo)
+                // Ajustamos as caixas de colisão para serem um pouco menores que o visual para ser "justo"
+                const birdLeft = bird.x - bird.width/2 + 4;
+                const birdRight = bird.x + bird.width/2 - 4;
+                const birdTop = bird.y - bird.height/2 + 4;
+                const birdBottom = bird.y + bird.height/2 - 4;
+
+                const pipeLeft = pipe.x;
+                const pipeRight = pipe.x + pipe.width;
+                const topPipeBottom = pipe.topHeight;
+                const bottomPipeTop = pipe.bottomY;
+
+                // Colisão Horizontal
+                if (birdRight > pipeLeft && birdLeft < pipeRight) {
+                    // Colisão Vertical (Cano de Cima OU Cano de Baixo)
+                    if (birdTop < topPipeBottom || birdBottom > bottomPipeTop) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            update() {
+                if (this.state !== 'PLAYING') return;
+
+                // Atualiza Pássaro
+                this.bird.update();
+
+                // Colisão com Chão e Teto
+                if (this.bird.y + this.bird.height/2 >= this.canvas.height - CONFIG.groundHeight) {
+                    this.bird.y = this.canvas.height - CONFIG.groundHeight - this.bird.height/2;
+                    this.gameOver();
+                }
+                if (this.bird.y - this.bird.height/2 <= 0) {
+                    this.bird.y = this.bird.height/2;
+                    this.bird.velocity = 0;
+                }
+
+                // Gerenciamento de Canos
+                if (this.frames % CONFIG.pipeSpawnRate === 0) {
+                    this.pipes.push(new Pipe(this.canvas.width, this.canvas.height));
+                }
+
+                for (let i = 0; i < this.pipes.length; i++) {
+                    let p = this.pipes[i];
+                    p.update();
+
+                    // Colisão
+                    if (this.checkCollision(this.bird, p)) {
+                        this.gameOver();
+                    }
+
+                    // Pontuação
+                    if (p.x + p.width < this.bird.x && !p.passed) {
+                        this.score++;
+                        this.scoreEl.innerText = this.score;
+                        p.passed = true;
+                    }
+
+                    // Remove canos que saíram da tela
+                    if (p.x + p.width < 0) {
+                        this.pipes.shift();
+                        i--;
+                    }
+                }
+
+                // Animação do Chão (Efeito de movimento)
+                this.groundX = (this.groundX - CONFIG.speed) % 24; // 24 é a largura do padrão do chão
+                this.frames++;
+            }
+
+            draw() {
+                // Limpa tela
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Desenha Canos
+                this.pipes.forEach(pipe => pipe.draw(this.ctx));
+
+                // Desenha Chão
+                this.drawGround();
+
+                // Desenha Pássaro
+                if (this.bird) this.bird.draw(this.ctx);
+            }
+
+            drawGround() {
+                const groundY = this.canvas.height - CONFIG.groundHeight;
+
+                // Cor base do chão
+                this.ctx.fillStyle = "#ded895";
+                this.ctx.fillRect(0, groundY, this.canvas.width, CONFIG.groundHeight);
+
+                // Borda superior do chão
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, groundY);
+                this.ctx.lineTo(this.canvas.width, groundY);
+                this.ctx.strokeStyle = "#543847";
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+
+                // Padrão de grama/movimento
+                this.ctx.fillStyle = "#d4ce88"; // Cor do detalhe
+                for (let i = this.groundX; i < this.canvas.width; i += 24) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(i, groundY);
+                    this.ctx.lineTo(i + 12, groundY + 15);
+                    this.ctx.lineTo(i - 12, groundY + 15);
+                    this.ctx.fill();
+                }
+            }
+
+            loop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(this.loop);
+            }
+        }
+
+        // Inicializa o jogo quando o DOM estiver pronto
+        window.onload = () => {
+            const game = new Game();
+        };
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Clone - Vanilla JS</title>
+    <style>
+        /* -------------------- */
+        /* CSS Styling */
+        /* -------------------- */
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #283b4a; /* Cor de fundo geral */
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameCanvas {
+            border: 5px solid #3c5e7d;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            background-color: #70c5ce; /* Cor do céu */
+        }
+
+        #scoreBoard {
+            margin-top: 10px;
+            font-size: 2em;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Modal de Game Over */
+        #gameOverModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none; /* Inicialmente oculto */
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background-color: #3c5e7d;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content h2 {
+            color: #ffeb3b;
+            margin-bottom: 10px;
+        }
+
+        .modal-content p {
+            font-size: 1.2em;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        #restartButton, #startScreen button {
+            background-color: #4caf50; /* Verde vibrante */
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #restartButton:hover, #startScreen button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="scoreBoard">Score: 0 | High Score: <span id="highScoreDisplay">0</span></div>
+
+    <!-- Modal de Game Over/Start Screen -->
+    <div id="gameOverModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Game Over!</h2>
+            <p>Sua Pontuação: <span id="finalScoreDisplay">0</span></p>
+            <p>Recorde Máximo: <span id="highScoreModalDisplay">0</span></p>
+            <button id="restartButton">Tentar Novamente</button>
+        </div>
+    </div>
+
+    <script>
+        // --------------------
+        // JAVASCRIPT LOGIC (Vanilla JS)
+        // --------------------
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBoard = document.getElementById('scoreBoard');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const modal = document.getElementById('gameOverModal');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const highScoreModalDisplay = document.getElementById('highScoreModalDisplay');
+        const restartButton = document.getElementById('restartButton');
+
+        // --- Configurações do Jogo ---
+        const GAME_WIDTH = 400;
+        const GAME_HEIGHT = 600;
+        const GRAVITY = 0.5;
+        const JUMP_STRENGTH = -10;
+        const PIPE_SPEED = 3;
+        const PIPE_GAP = 200; // Espaço vertical entre os canos
+        const PIPE_WIDTH = 60;
+        const PIPE_SPAWN_INTERVAL = 1500; // Milissegundos
+
+        // Ajuste do canvas para ser responsivo em relação ao container, mas mantendo proporção.
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        let gameLoopId;
+        let isPlaying = false;
+        let score = 0;
+        let highscore = parseInt(localStorage.getItem('flappyHighScore') || '0');
+
+        // --- Classes de Objetos do Jogo ---
+
+        /**
+         * Representa o Pássaro (Bird)
+         */
+        class Bird {
+            constructor() {
+                this.x = 50;
+                this.y = GAME_HEIGHT / 2 - 30;
+                this.radius = 15;
+                this.velocity = 0;
+                this.color = '#ffeb3b'; // Amarelo vibrante
+            }
+
+            update() {
+                // Aplica gravidade e atualiza a posição vertical
+                this.velocity += GRAVITY;
+                this.y += this.velocity;
+            }
+
+            jump() {
+                this.velocity = JUMP_STRENGTH;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                // Desenha o corpo do pássaro (círculo)
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Adiciona um pequeno detalhe de bico/olho para melhor visualização
+                ctx.fillStyle = '#333';
+                ctx.fillRect(this.x + 5, this.y - 5, 5, 5);
+            }
+
+            getBounds() {
+                // Retorna um objeto de colisão (retângulo)
+                return {
+                    left: this.x - this.radius,
+                    right: this.x + this.radius,
+                    top: this.y - this.radius,
+                    bottom: this.y + this.radius
+                };
+            }
+        }
+
+        /**
+         * Representa um Cano (Pipe)
+         */
+        class Pipe {
+            constructor(x, topHeight, bottomY) {
+                this.x = x;
+                this.topHeight = topHeight; // Altura do cano superior
+                this.bottomY = bottomY;     // Y inicial do cano inferior (base)
+                this.width = PIPE_WIDTH;
+                this.gap = PIPE_GAP;
+                this.color = '#74ut2'; // Verde escuro para os canos
+
+                // Calcula a altura do cano inferior
+                this.bottomHeight = GAME_HEIGHT - this.bottomY;
+            }
+
+            update() {
+                this.x -= PIPE_SPEED;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+
+                // Desenha o cano superior (Top)
+                ctx.fillRect(this.x, 0, this.width, this.topHeight);
+
+                // Desenha o cano inferior (Bottom)
+                ctx.fillRect(this.x, this.bottomY, this.width, this.bottomHeight);
+            }
+
+            getBounds() {
+                // Retorna um objeto de colisão para a seção superior e inferior
+                return [
+                    { left: this.x, right: this.x + this.width, top: 0, bottom: this.topHeight }, // Top Pipe
+                    { left: this.x, right: this.x + this.width, top: this.bottomY, bottom: GAME_HEIGHT }  // Bottom Pipe
+                ];
+            }
+
+            isOffScreen() {
+                return this.x + this.width < 0;
+            }
+        }
+
+
+        /**
+         * Gerenciador Principal do Jogo (Game State)
+         */
+        class GameState {
+            constructor() {
+                this.bird = new Bird();
+                this.pipes = [];
+                this.lastPipeTime = Date.now();
+                this.score = 0;
+                this.highScore = highscore;
+
+                // Inicializa o display do recorde
+                this.updateHighScoreDisplay(this.highScore);
+            }
+
+            jump() {
+                if (isPlaying) {
+                    this.bird.jump();
+                }
+            }
+
+            spawnPipe() {
+                const minHeight = 50;
+                const maxHeight = GAME_HEIGHT - PIPE_GAP - 50;
+
+                // Altura aleatória do cano superior
+                let topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+                // Posição Y onde o cano inferior começa
+                let bottomY = topHeight + PIPE_GAP;
+
+                const newPipe = new Pipe(GAME_WIDTH, topHeight, bottomY);
+                this.pipes.push(newPipe);
+            }
+
+            update() {
+                if (!isPlaying) return;
+
+                // 1. Atualiza o Pássaro
+                this.bird.update();
+
+                // 2. Gerencia e atualiza os Canos
+                const now = Date.now();
+                if (now - this.lastPipeTime > PIPE_SPAWN_INTERVAL) {
+                    this.spawnPipe();
+                    this.lastPipeTime = now;
+                }
+
+                this.pipes.forEach(pipe => pipe.update());
+
+                // Remove canos que saíram da tela
+                this.pipes = this.pipes.filter(pipe => !pipe.isOffScreen());
+
+                // 3. Verifica Pontuação e Colisão
+                this.checkCollisions();
+                this.checkScore();
+            }
+
+            draw() {
+                // Limpa o canvas a cada frame
+                ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+                // Desenha o chão (Ground)
+                ctx.fillStyle = '#8b4513'; // Marrom
+                ctx.fillRect(0, GAME_HEIGHT - 20, GAME_WIDTH, 20);
+
+                // Desenha os canos e o pássaro
+                this.pipes.forEach(pipe => pipe.draw());
+                this.bird.draw();
+            }
+
+            checkCollisions() {
+                const birdBounds = this.bird.getBounds();
+
+                // Colisão com Chão ou Teto
+                if (birdBounds.bottom + 15 > GAME_HEIGHT - 20 || birdBounds.top < 0) {
+                    return true; // Game Over
+                }
+
+                // Colisão com Canos
+                for (const pipe of this.pipes) {
+                    for (const pBound of pipe.getBounds()) {
+                        // AABB Collision Check:
+                        if (birdBounds.left < pBound.right &&
+                            birdBounds.right > pBound.left &&
+                            birdBounds.top < pBound.bottom &&
+                            birdBounds.bottom > pBound.top) {
+                            return true; // Game Over
+                        }
+                    }
+                }
+
+                return false; // Sem colisão
+            }
+
+            checkScore() {
+                let scoredThisFrame = false;
+                for (const pipe of this.pipes) {
+                    // Verifica se o pássaro passou pelo cano e ainda não pontuou por ele
+                    if (pipe.x + PIPE_WIDTH < this.bird.getBounds().left && !pipe.scored) {
+                        this.score++;
+                        pipe.scored = true; // Marca como pontuado para evitar contagem dupla
+                        scoredThisFrame = true;
+                    }
+                }
+
+                if (scoredThisFrame) {
+                     // Atualiza a UI da pontuação
+                    document.getElementById('currentScoreDisplay').textContent = this.score;
+                }
+            }
+
+            gameOver() {
+                this.updateHighScore(this.score);
+                isPlaying = false;
+                cancelAnimationFrame(gameLoopId);
+                this.showModal();
+            }
+
+            updateHighScore(newScore) {
+                if (newScore > this.highScore) {
+                    this.highScore = newScore;
+                    localStorage.setItem('flappyHighScore', this.highScore);
+                    this.updateHighScoreDisplay(this.highScore);
+                }
+            }
+
+            showModal() {
+                document.getElementById('modalTitle').textContent = "Game Over!";
+                finalScoreDisplay.textContent = this.score;
+                highScoreModalDisplay.textContent = this.highScore;
+                modal.style.display = 'flex';
+            }
+
+            reset() {
+                this.bird = new Bird();
+                this.pipes = [];
+                this.score = 0;
+                this.lastPipeTime = Date.now();
+                isPlaying = true;
+                document.getElementById('currentScoreDisplay').textContent = 0;
+                modal.style.display = 'none';
+            }
+
+            updateHighScoreDisplay(score) {
+                 highScoreDisplay.textContent = score;
+            }
+        }
+
+
+        // --- Game Loop e Event Handlers ---
+
+        const gameState = new GameState();
+
+        /**
+         * Função principal do loop de jogo
+         */
+        function gameLoop() {
+            if (isPlaying) {
+                gameState.update();
+                gameState.draw();
+
+                // Verifica colisão: se retornar true, significa que houve impacto
+                if (gameState.checkCollisions()) {
+                    gameState.gameOver();
+                }
+            }
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+
+        function handleInput() {
+            if (!isPlaying) {
+                // Se o jogo não estiver rodando, inicia-o no primeiro clique/tecla
+                gameState.reset();
+            } else {
+                gameState.jump();
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                handleInput();
+            }
+        });
+
+        canvas.addEventListener('mousedown', handleInput);
+        canvas.addEventListener('touchstart', (e) => {
+             // Previne o scroll em dispositivos móveis ao tocar no canvas
+            e.preventDefault();
+            handleInput();
+        });
+
+
+        restartButton.addEventListener('click', () => {
+            gameState.reset();
+        });
+
+        // Inicialização do Jogo: Inicia o loop e exibe a tela de boas-vindas/instruções
+        function initializeGame() {
+             // Adiciona um elemento temporário para exibir a pontuação atual no modal (apenas visual)
+            const scoreDisplayElement = document.createElement('span');
+            scoreDisplayElement.id = 'currentScoreDisplay';
+            document.getElementById('scoreBoard').appendChild(scoreDisplayElement);
+
+            // Inicia o loop de renderização, mas não joga até que o usuário clique/toque
+            gameLoop();
+        }
+
+
+        initializeGame();
+
+    </script>
+</body>
+</html>

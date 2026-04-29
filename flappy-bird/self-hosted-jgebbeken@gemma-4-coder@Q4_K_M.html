@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Clone - Vanilla JS</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #282c34;
+            font-family: 'Arial', sans-serif;
+            user-select: none; /* Previne seleção de texto no jogo */
+        }
+
+        #gameContainer {
+            position: relative;
+            border: 5px solid #3a3f47;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            background-color: #70c5ce; /* Cor do céu */
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Estilo da Pontuação (HUD) */
+        #scoreBoard {
+            width: 100%;
+            text-align: center;
+            padding: 10px 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 2em;
+            margin-bottom: -5px; /* Ajuste para ficar colado ao canvas */
+        }
+
+        /* Modal de Game Over/Menu Principal */
+        #gameOverModal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10; /* Acima do canvas */
+        }
+
+        #modalContent {
+            background-color: #3a3f47;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        #modalContent h2 {
+            color: #ffeb3b;
+            margin-top: 0;
+        }
+
+        #restartButton {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            margin-top: 15px;
+            transition: background-color 0.2s;
+        }
+
+        #restartButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">Score: <span id="currentScore">0</span> | High Score: <span id="highScore">0</span></div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <!-- Modal de Game Over/Menu -->
+        <div id="gameOverModal" style="display: none;">
+            <div id="modalContent">
+                <h2>GAME OVER!</h2>
+                <p>Sua Pontuação: <span id="finalScore">0</span></p>
+                <p>Recorde: <span id="highScoreDisplay">0</span></p>
+                <button id="restartButton">Tentar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==============================================================
+        // 1. CONFIGURAÇÕES GLOBAIS E CONSTANTES
+        // ==============================================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('currentScore');
+        const highScoreDisplay = document.getElementById('highScore');
+        const modal = document.getElementById('gameOverModal');
+        const finalScoreSpan = document.getElementById('finalScore');
+        const highScoreDisplayModal = document.getElementById('highScoreDisplay');
+        const restartButton = document.getElementById('restartButton');
+
+        // Dimensões do Jogo (Serão ajustadas no resize)
+        let GAME_WIDTH = 400;
+        let GAME_HEIGHT = 600;
+
+        // Constantes de Física e Jogo
+        const GRAVITY = 0.5;
+        const JUMP_STRENGTH = -10;
+        const PIPE_SPEED = 3;
+        const PIPE_WIDTH = 70;
+        const PIPE_GAP = 180; // Espaço vertical entre os canos
+        const GROUND_HEIGHT = 60;
+
+        // Estado do Jogo
+        let gameState = {
+            isRunning: false,
+            score: 0,
+            highScore: parseInt(localStorage.getItem('flappyHighScore')) || 0
+        };
+
+        // Objetos de Jogo (Instâncias)
+        let bird;
+        let pipes = [];
+        let lastPipeTime = 0;
+        const PIPE_SPAWN_INTERVAL = 2000; // Milissegundos
+
+        // ==============================================================
+        // 2. CLASSES DE OBJETOS (ES6)
+        // ==============================================================
+
+        /**
+         * Classe Pássaro (Bird)
+         */
+        class Bird {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.velocity = 0;
+                this.color = '#FFD700'; // Amarelo ouro
+            }
+
+            update() {
+                // Aplica gravidade e atualiza a velocidade
+                this.velocity += GRAVITY;
+                this.y += this.velocity;
+
+                // Limita o movimento vertical para não sair muito da tela (ajuste visual)
+                if (this.y + this.height > GAME_HEIGHT - GROUND_HEIGHT) {
+                    this.y = GAME_HEIGHT - GROUND_HEIGHT - this.height;
+                    this.velocity = 0; // Para no chão
+                }
+            }
+
+            jump() {
+                this.velocity = JUMP_STRENGTH;
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color;
+                // Desenha o corpo do pássaro (retângulo simples)
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                // Simulação de bico/olho para melhor visualização
+                ctx.fillStyle = 'black';
+                ctx.fillRect(this.x + 10, this.y + 5, 5, 3);
+            }
+
+            getBounds() {
+                return { x: this.x, y: this.y, width: this.width, height: this.height };
+            }
+        }
+
+        /**
+         * Classe Cano (Pipe)
+         */
+        class Pipe {
+            constructor(x, topHeight, bottomY) {
+                this.x = x;
+                this.topHeight = topHeight; // Altura da parte superior
+                this.bottomY = bottomY;     // Y inicial do fundo
+                this.width = PIPE_WIDTH;
+                this.passed = false; // Para rastrear se o jogador passou por ele
+            }
+
+            update() {
+                this.x -= PIPE_SPEED;
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = '#228B22'; // Verde floresta
+
+                // Desenha o cano superior
+                ctx.fillRect(this.x, 0, this.width, this.topHeight);
+
+                // Desenha o cano inferior (do topo até a base)
+                const bottomHeight = GAME_HEIGHT - GROUND_HEIGHT - (this.bottomY + PIPE_GAP);
+                ctx.fillRect(this.x, this.bottomY, this.width, bottomHeight);
+
+                // Detalhe de borda para melhor visualização
+                ctx.strokeStyle = '#1e6b1e';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(this.x - 2, 0, this.width + 4, this.topHeight);
+                ctx.strokeRect(this.x - 2, this.bottomY, this.width + 4, bottomHeight);
+            }
+
+            getBounds() {
+                // Retorna os limites do cano superior e inferior para colisão
+                return [
+                    { x: this.x, y: 0, width: this.width, height: this.topHeight }, // Top Pipe
+                    { x: this.x, y: this.bottomY, width: this.width, height: GAME_HEIGHT - GROUND_HEIGHT - (this.bottomY + PIPE_GAP) } // Bottom Pipe
+                ];
+            }
+
+            // Verifica se o pássaro colidiu com este cano
+            checkCollision(birdBounds) {
+                const topPipe = { x: this.x, y: 0, width: this.width, height: this.topHeight };
+                const bottomPipe = { x: this.x, y: this.bottomY, width: this.width, height: GAME_HEIGHT - GROUND_HEIGHT - (this.bottomY + PIPE_GAP) };
+
+                // Colisão com o cano superior
+                if (birdBounds.x < topPipe.x + topPipe.width &&
+                    birdBounds.x + birdBounds.width > topPipe.x &&
+                    birdBounds.y < topPipe.y + topPipe.height &&
+                    birdBounds.y + birdBounds.height > topPipe.y) {
+                    return true;
+                }
+
+                // Colisão com o cano inferior
+                if (birdBounds.x < bottomPipe.x + bottomPipe.width &&
+                    birdBounds.x + birdBounds.width > bottomPipe.x &&
+                    birdBounds.y < bottomPipe.y + bottomPipe.height &&
+                    birdBounds.y + birdBounds.height > bottomPipe.y) {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+
+        // ==============================================================
+        // 3. FUNÇÕES DE INICIALIZAÇÃO E UTILIDADE
+        // ==============================================================
+
+        /**
+         * Ajusta o canvas e as dimensões do jogo para serem responsivos.
+         */
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            // Define a largura máxima baseada no design, mas usa 100% da largura disponível
+            GAME_WIDTH = Math.min(400, window.innerWidth * 0.9);
+            GAME_HEIGHT = 650; // Altura fixa para manter proporção de jogo
+
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+
+            // Ajusta o pássaro e a posição inicial se necessário
+            if (bird) {
+                bird.x = GAME_WIDTH * 0.2;
+                bird.y = GAME_HEIGHT - GROUND_HEIGHT - bird.height - 50; // Posição inicial no céu
+            }
+
+            // Atualiza o High Score na UI
+            highScoreDisplay.textContent = gameState.highScore;
+            highScoreDisplayModal.textContent = gameState.highScore;
+        }
+
+        /**
+         * Inicializa ou reinicializa todos os estados do jogo.
+         */
+        function initializeGame() {
+            resizeCanvas(); // Garante que o canvas tenha as dimensões corretas
+
+            // 1. Resetar Pássaro
+            bird = new Bird(GAME_WIDTH * 0.2, GAME_HEIGHT - GROUND_HEIGHT - 50, 40, 30);
+
+            // 2. Limpar Canos e Pontuação
+            pipes = [];
+            gameState.score = 0;
+            lastPipeTime = performance.now();
+
+            // 3. Resetar Estado Visual
+            scoreDisplay.textContent = gameState.score;
+            modal.style.display = 'none';
+            gameState.isRunning = true;
+
+            // 4. Iniciar o loop principal
+            gameLoop(performance.now());
+        }
+
+        /**
+         * Gera um novo par de canos (superior e inferior).
+         */
+        function generatePipe() {
+            // Altura aleatória para o topo do cano superior, garantindo que haja espaço no chão/céu
+            const minTopHeight = 50;
+            const maxTopHeight = GAME_HEIGHT - GROUND_HEIGHT - PIPE_GAP - 50;
+            const topHeight = Math.floor(Math.random() * (maxTopHeight - minTopHeight + 1)) + minTopHeight;
+
+            // Onde o cano inferior deve começar verticalmente (acima do chão)
+            const bottomY = topHeight + PIPE_GAP;
+
+            pipes.push(new Pipe(GAME_WIDTH, topHeight, bottomY));
+        }
+
+
+        // ==============================================================
+        // 4. LÓGICA DO JOGO LOOP
+        // ==============================================================
+
+        /**
+         * Função principal do Game Loop usando requestAnimationFrame.
+         * @param {number} currentTime - Timestamp atual de performance.
+         */
+        function gameLoop(currentTime) {
+            if (!gameState.isRunning) return;
+
+            // 1. Limpar Canvas (Desenha o céu e o chão)
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            drawBackground();
+
+            // 2. Atualizar Pássaro
+            bird.update();
+
+            // 3. Gerar Canos Proceduralmente
+            if (currentTime - lastPipeTime > PIPE_SPAWN_INTERVAL) {
+                generatePipe();
+                lastPipeTime = currentTime;
+            }
+
+            // 4. Atualizar e Desenhar Canos
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                const pipe = pipes[i];
+                pipe.update();
+                pipe.draw(ctx);
+
+                // Verificar pontuação
+                if (!pipe.passed && pipe.x + PIPE_WIDTH < bird.x) {
+                    gameState.score++;
+                    scoreDisplay.textContent = gameState.score;
+                    pipe.passed = true;
+                }
+
+                // 5. Detecção de Colisão (AABB)
+                const birdBounds = bird.getBounds();
+                let hitPipe = false;
+                for(const pipe of pipes) {
+                    if (pipe.checkCollision(birdBounds)) {
+                        hitPipe = true;
+                        break;
+                    }
+                }
+
+                // Colisão com o chão ou teto (implícito pelo limite do pássaro, mas bom checar explicitamente)
+                const hitGround = bird.y + bird.height >= GAME_HEIGHT - GROUND_HEIGHT;
+                if(hitGround || hitPipe) {
+                    gameOver();
+                    return; // Interrompe o loop imediatamente
+                }
+
+                // Remover canos fora da tela para otimização
+                if (pipe.x + PIPE_WIDTH < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+
+            // 6. Desenhar Pássaro e Chão
+            bird.draw(ctx);
+            drawGround();
+
+
+            // Loop recursivo
+            requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * Desenha o fundo (céu) e o chão estático.
+         */
+        function drawBackground() {
+            // Céu (Já definido no CSS, mas desenhamos um gradiente sutil para reforço)
+            ctx.fillStyle = '#70c5ce';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT - GROUND_HEIGHT);
+
+            // Desenha o chão
+            drawGround();
+        }
+
+        function drawGround() {
+            const groundY = GAME_HEIGHT - GROUND_HEIGHT;
+
+            // Grama/Chão principal
+            ctx.fillStyle = '#ded895'; // Cor do solo
+            ctx.fillRect(0, groundY, GAME_WIDTH, GROUND_HEIGHT);
+
+            // Detalhe de grama (simples)
+            ctx.fillStyle = '#38761d';
+            ctx.fillRect(0, groundY, GAME_WIDTH, 5);
+        }
+
+
+        /**
+         * Finaliza o jogo, exibe a tela Game Over e salva o recorde.
+         */
+        function gameOver() {
+            gameState.isRunning = false;
+
+            // Salva o High Score se for maior que o atual
+            if (gameState.score > gameState.highScore) {
+                gameState.highScore = Math.floor(gameState.score);
+                localStorage.setItem('flappyHighScore', gameState.highScore);
+            }
+
+            // Atualiza a UI do High Score
+            highScoreDisplay.textContent = gameState.highScore;
+
+            // Exibe o Modal
+            finalScoreSpan.textContent = gameState.score;
+            highScoreDisplayModal.textContent = gameState.highScore;
+            modal.style.display = 'flex';
+        }
+
+
+        // ==============================================================
+        // 5. EVENT LISTENERS E INICIALIZAÇÃO FINAL
+        // ==============================================================
+
+        /**
+         * Manipulador de eventos para o pulo (Clique ou Espaço)
+         */
+        function handleJump() {
+            if (!gameState.isRunning) {
+                initializeGame(); // Se estiver no menu, inicia o jogo
+            } else {
+                bird.jump();
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.key === ' ') {
+                e.preventDefault(); // Previne scroll com a barra de espaço
+                handleJump();
+            }
+        });
+
+        canvas.addEventListener('click', handleJump);
+        restartButton.addEventListener('click', () => initializeGame());
+
+
+        // Inicialização ao carregar a página
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = () => {
+            resizeCanvas(); // Define o tamanho inicial correto
+            // Não chamamos initializeGame() aqui, pois queremos que o usuário clique/pressione espaço para começar.
+            console.log("Jogo carregado. Clique ou pressione ESPAÇO para começar.");
+        };
+
+    </script>
+</body>
+</html>
