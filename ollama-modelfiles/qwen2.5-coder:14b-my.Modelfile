@@ -1,0 +1,12 @@
+FROM qwen2.5-coder:14b
+
+# 6 núcleos físicos = 6 threads (evita gargalo de cache)
+PARAMETER num_thread 11
+
+# Tenta carregar o máximo de camadas na iGPU (memória RAM reservada)
+PARAMETER num_gpu 32
+
+# Aumenta a janela de contexto (ex: 8k tokens) se houver RAM sobrando
+PARAMETER num_ctx 131072
+
+PARAMETER temperature 0.2
