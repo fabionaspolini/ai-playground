@@ -15,8 +15,8 @@ Modelo: com Sonnet 4.6
 **Créditos monitorados no platform.claude.com**
 
 - Início: $ 1.65
-- Fim: $ 
-- Gasto: $ 
+- Fim: $ 1.33
+- Gasto: $ 0.32
 
 **Usage statistics**
 
