@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy Bird</title>
+<style>
+  /* ============================================
+     RESET & BASE
+     ============================================ */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* ============================================
+     CANVAS CONTAINER
+     ============================================ */
+  #gameContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  canvas {
+    display: block;
+    border-radius: 4px;
+    image-rendering: pixelated;
+  }
+
+  /* ============================================
+     GAME OVER MODAL
+     ============================================ */
+  #gameOverModal {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+
+  #gameOverModal.active {
+    display: flex;
+  }
+
+  .modal-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px 40px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    text-align: center;
+    min-width: 280px;
+    animation: modalPop 0.3s ease-out;
+  }
+
+  @keyframes modalPop {
+    from { transform: scale(0.8); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .modal-card h2 {
+    color: #e74c3c;
+    font-size: 32px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 12px 0;
+    font-size: 22px;
+    color: #333;
+  }
+
+  .score-row .icon {
+    font-size: 28px;
+  }
+
+  .score-row .value {
+    font-weight: bold;
+    font-size: 26px;
+  }
+
+  .new-record-badge {
+    display: none;
+    background: linear-gradient(135deg, #f39c12, #e74c3c);
+    color: #fff;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 16px;
+    margin: 16px auto;
+    animation: badgePulse 0.6s ease-in-out infinite alternate;
+  }
+
+  .new-record-badge.show {
+    display: inline-block;
+  }
+
+  @keyframes badgePulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.08); }
+  }
+
+  .btn-restart {
+    margin-top: 24px;
+    background: #2ecc40;
+    color: #fff;
+    border: none;
+    padding: 14px 36px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 1px;
+  }
+
+  .btn-restart:hover {
+    background: #27ae36;
+    transform: scale(1.05);
+  }
+
+  .btn-restart:active {
+    transform: scale(0.97);
+  }
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Game Over Modal -->
+  <div id="gameOverModal">
+    <div class="modal-card">
+      <h2>Game Over</h2>
+      <div class="score-row">
+        <span class="icon">🏅</span>
+        <span>Score:</span>
+        <span class="value" id="modalScore">0</span>
+      </div>
+      <div class="score-row">
+        <span class="icon">🏆</span>
+        <span>Best:</span>
+        <span class="value" id="modalBest">0</span>
+      </div>
+      <div class="new-record-badge" id="newRecordBadge">NOVO RECORDE! 🏆</div>
+      <button class="btn-restart" id="btnRestart">JOGAR NOVAMENTE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  CONSTANTES CONFIGURÁVEIS
+// ============================================================
+
+// --- FÍSICA ---
+const GRAVITY         = 1800;  // px/s²
+const FLAP_FORCE      = -520;  // px/s (impulso para cima)
+const TERMINAL_VEL    = 600;   // px/s (velocidade máxima de queda)
+
+// --- CANOS ---
+const PIPE_GAP        = 160;   // px (abertura entre canos)
+const PIPE_WIDTH      = 60;    // px
+const PIPE_SPEED_BASE = 200;   // px/s
+const PIPE_SPEED_MAX  = 350;   // px/s
+const PIPE_INTERVAL   = 1500;  // ms entre novos canos
+
+// --- PÁSSARO ---
+const BIRD_RADIUS     = 18;    // px (raio visual)
+const BIRD_HITBOX_R   = 14;    // px (raio do hitbox)
+const ANIM_INTERVAL   = 120;   // ms entre frames de asa
+
+// --- CANVAS ---
+const BASE_WIDTH      = 360;   // px (largura de referência)
+const BASE_HEIGHT     = 640;   // px (altura de referência)
+const GROUND_HEIGHT   = 80;    // px
+
+// --- CORES ---
+const COLORS = {
+  skyTop:    '#70C5CE',
+  skyBottom: '#C9E8F0',
+  ground:    '#DEB887',
+  grass:     '#54a035',
+  pipeBody:  '#2ECC40',
+  pipeBorder:'#1a7a25',
+  pipeHighlight: '#5dde6f',
+  birdBody:  '#F5C842',
+  birdDark:  '#e8a817',
+  birdWing:  '#f0a500',
+  birdBeak:  '#e8710a',
+  birdBeakDark:'#c45e08',
+  cityColor: '#8B9BB4',
+  cloudColor:'rgba(255,255,255,0.9)',
+};
+
+// ============================================================
+//  FUNÇÕES UTILITÁRIAS
+// ============================================================
+
+/** Limita um valor entre min e max */
+function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+/** Retorna número aleatório entre min e max (inclusivo) */
+function randomBetween(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+/**
+ * Detecção de colisão círculo-retângulo (AABB).
+ * Retorna true se houver interseção.
+ */
+function circleRect(cx, cy, cr, rx, ry, rw, rh) {
+  // Encontra o ponto mais próximo no retângulo ao centro do círculo
+  const closestX = clamp(cx, rx, rx + rw);
+  const closestY = clamp(cy, ry, ry + rh);
+  const dx = cx - closestX;
+  const dy = cy - closestY;
+  return (dx * dx + dy * dy) <= (cr * cr);
+}
+
+// ============================================================
+//  SISTEMA DE ÁUDIO (Web Audio API)
+// ============================================================
+
+class AudioManager {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+  }
+
+  /** Inicializa o AudioContext (deve ser chamado após interação do usuário) */
+  init() {
+    if (this.ctx) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      this.enabled = false;
+    }
+  }
+
+  /** Toca o som de flap (tom ascendente curto) */
+  playFlap() {
+    if (!this.enabled || !this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(900, this.ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.08);
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + 0.08);
+  }
+
+  /** Toca o som de pontuação (dois beeps rápidos) */
+  playScore() {
+    if (!this.enabled || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    // Primeiro beep
+    const osc1 = this.ctx.createOscillator();
+    const gain1 = this.ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(this.ctx.destination);
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(700, t);
+    gain1.gain.setValueAtTime(0.15, t);
+    gain1.gain.linearRampToValueAtTime(0, t + 0.08);
+    osc1.start(t);
+    osc1.stop(t + 0.08);
+    // Segundo beep
+    const osc2 = this.ctx.createOscillator();
+    const gain2 = this.ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(this.ctx.destination);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(900, t + 0.1);
+    gain2.gain.setValueAtTime(0.15, t + 0.1);
+    gain2.gain.linearRampToValueAtTime(0, t + 0.18);
+    osc2.start(t + 0.1);
+    osc2.stop(t + 0.18);
+  }
+
+  /** Toca o som de colisão (tom descendente) */
+  playHit() {
+    if (!this.enabled || !this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.2);
+    osc.start(this.ctx.currentTime);
+    osc.stop(this.ctx.currentTime + 0.2);
+  }
+}
+
+// ============================================================
+//  CLASSE: Bird
+// ============================================================
+
+class Bird {
+  constructor(x, y) {
+    // Posição
+    this.x = x;
+    this.y = y;
+    // Física
+    this.velocity = 0;
+    this.radius = BIRD_RADIUS;
+    this.hitboxRadius = BIRD_HITBOX_R;
+    // Rotação visual
+    this.angle = 0;
+    // Animação de asas
+    this.wingFrame = 0;       // 0, 1, 2
+    this.lastAnimTime = 0;
+    this.animFrozen = false;  // Congela animação no Game Over
+    // Estado
+    this.alive = true;
+  }
+
+  /** Aplica gravidade e limita velocidade terminal */
+  update(dt) {
+    if (!this.alive) return;
+    this.velocity += GRAVITY * dt;
+    this.velocity = Math.min(this.velocity, TERMINAL_VEL);
+    this.y += this.velocity * dt;
+
+    // Interpolação suave da rotação
+    const targetAngle = clamp(this.velocity / 10, -25, 90);
+    this.angle += (targetAngle - this.angle) * Math.min(1, dt * 10);
+
+    // Atualiza animação de asas
+    if (!this.animFrozen) {
+      const now = performance.now();
+      if (now - this.lastAnimTime >= ANIM_INTERVAL) {
+        this.wingFrame = (this.wingFrame + 1) % 3;
+        this.lastAnimTime = now;
+      }
+    }
+  }
+
+  /** Aplica impulso para cima (flap) */
+  flap() {
+    if (!this.alive) return;
+    this.velocity = FLAP_FORCE;
+  }
+
+  /** Desenha o pássaro no canvas */
+  draw(ctx, scale) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate((this.angle * Math.PI) / 180);
+    ctx.scale(scale, scale);
+
+    const r = this.radius;
+
+    // --- Corpo (gradiente radial) ---
+    const bodyGrad = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+    bodyGrad.addColorStop(0, '#ffe066');
+    bodyGrad.addColorStop(0.7, COLORS.birdBody);
+    bodyGrad.addColorStop(1, COLORS.birdDark);
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r, r * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#c4880a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // --- Asa (animada) ---
+    const wingOffsets = [-4, 0, 4]; // cima, meio, baixo
+    const wingY = wingOffsets[this.wingFrame];
+    ctx.fillStyle = COLORS.birdWing;
+    ctx.strokeStyle = '#c4880a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.3, wingY, r * 0.6, r * 0.35, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // --- Olho ---
+    const eyeX = r * 0.4;
+    const eyeY = -r * 0.2;
+    const eyeR = r * 0.35;
+    // Branco
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    // Pupila
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(eyeX + eyeR * 0.2, eyeY, eyeR * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    // Reflexo
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(eyeX + eyeR * 0.35, eyeY - eyeR * 0.25, eyeR * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // --- Bico ---
+    const beakX = r * 0.7;
+    const beakY = r * 0.05;
+    // Bico superior
+    ctx.fillStyle = COLORS.birdBeak;
+    ctx.beginPath();
+    ctx.moveTo(beakX, beakY - 3);
+    ctx.lineTo(beakX + r * 0.6, beakY);
+    ctx.lineTo(beakX, beakY + 1);
+    ctx.closePath();
+    ctx.fill();
+    // Bico inferior
+    ctx.fillStyle = COLORS.birdBeakDark;
+    ctx.beginPath();
+    ctx.moveTo(beakX, beakY + 1);
+    ctx.lineTo(beakX + r * 0.5, beakY + 2);
+    ctx.lineTo(beakX, beakY + 5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+// ============================================================
+//  CLASSE: Pipe
+// ============================================================
+
+class Pipe {
+  constructor(x, gapCenterY, gapHeight, width) {
+    this.x = x;
+    this.width = width;
+    this.gapHeight = gapHeight;
+    this.gapCenterY = gapCenterY;
+    // Posições dos canos
+    this.topHeight = gapCenterY - gapHeight / 2;
+    this.bottomY = gapCenterY + gapHeight / 2;
+    this.scored = false;
+  }
+
+  /** Move o cano para a esquerda */
+  update(dt, speed) {
+    this.x -= speed * dt;
+  }
+
+  /** Desenha o par de canos (superior + inferior) */
+  draw(ctx, canvasHeight, groundHeight, scale) {
+    const w = this.width * scale;
+    const gapH = this.gapHeight * scale;
+    const gapCY = this.gapCenterY * scale;
+    const topH = (gapCY - gapH / 2) * scale;
+    const bottomY = (gapCY + gapH / 2) * scale;
+    const x = this.x * scale;
+    const drawH = canvasHeight - groundHeight;
+
+    // --- Cano superior ---
+    this._drawPipe(ctx, x, 0, w, topH, false, scale);
+    // --- Cano inferior ---
+    this._drawPipe(ctx, x, bottomY, w, drawH - bottomY, true, scale);
+  }
+
+  /**
+   * Desenha um único cano com gradiente e bocal.
+   * @param {boolean} isBottom - true se for o cano inferior
+   */
+  _drawPipe(ctx, x, y, w, h, isBottom, scale) {
+    if (h <= 0) return;
+
+    // Gradiente lateral para volume
+    const grad = ctx.createLinearGradient(x, 0, x + w, 0);
+    grad.addColorStop(0, COLORS.pipeBorder);
+    grad.addColorStop(0.15, COLORS.pipeHighlight);
+    grad.addColorStop(0.5, COLORS.pipeBody);
+    grad.addColorStop(0.85, COLORS.pipeBody);
+    grad.addColorStop(1, COLORS.pipeBorder);
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(x, y, w, h);
+
+    // Borda
+    ctx.strokeStyle = COLORS.pipeBorder;
+    ctx.lineWidth = 2 * scale;
+    ctx.strokeRect(x, y, w, h);
+
+    // Bocal (cap)
+    const capH = 26 * scale;
+    const capW = (w + 8 * scale);
+    const capX = x - 4 * scale;
+    let capY;
+    if (isBottom) {
+      capY = y;
+    } else {
+      capY = y + h - capH;
+    }
+
+    // Gradiente do bocal
+    const capGrad = ctx.createLinearGradient(capX, 0, capX + capW, 0);
+    capGrad.addColorStop(0, COLORS.pipeBorder);
+    capGrad.addColorStop(0.15, COLORS.pipeHighlight);
+    capGrad.addColorStop(0.5, COLORS.pipeBody);
+    capGrad.addColorStop(0.85, COLORS.pipeBody);
+    capGrad.addColorStop(1, COLORS.pipeBorder);
+
+    ctx.fillStyle = capGrad;
+    this._roundRect(ctx, capX, capY, capW, capH, 4 * scale);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.pipeBorder;
+    ctx.lineWidth = 2 * scale;
+    this._roundRect(ctx, capX, capY, capW, capH, 4 * scale);
+    ctx.stroke();
+  }
+
+  /** Helper: retângulo com cantos arredondados */
+  _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  /** Retorna true se o cano saiu completamente da tela à esquerda */
+  isOffScreen(scale) {
+    return (this.x * scale + this.width * scale) < -10;
+  }
+
+  /** Retorna os retângulos de colisão (AABB) para ambos os canos */
+  getHitboxes(scale) {
+    const w = this.width * scale;
+    const gapH = this.gapHeight * scale;
+    const gapCY = this.gapCenterY * scale;
+    const topH = (gapCY - gapH / 2) * scale;
+    const bottomY = (gapCY + gapH / 2) * scale;
+    const x = this.x * scale;
+    return [
+      { x: x, y: 0, w: w, h: topH },        // Cano superior
+      { x: x, y: bottomY, w: w, h: 10000 }   // Cano inferior (grande o suficiente)
+    ];
+  }
+}
+
+// ============================================================
+//  CLASSE: PipeManager
+// ============================================================
+
+class PipeManager {
+  constructor() {
+    this.pipes = [];
+    this.timer = 0;
+    this.pipeSpeed = PIPE_SPEED_BASE;
+    this.nextPipeTime = PIPE_INTERVAL;
+  }
+
+  /**
+   * Atualiza todos os canos e gera novos quando necessário.
+   * @param {number} dt - Delta time em segundos
+   * @param {number} canvasHeight - Altura do canvas
+   * @param {number} score - Pontuação atual (para aumentar velocidade)
+   */
+  update(dt, canvasHeight, score) {
+    // Aumenta velocidade a cada 5 pontos
+    this.pipeSpeed = Math.min(PIPE_SPEED_MAX, PIPE_SPEED_BASE + Math.floor(score / 5) * 10);
+
+    this.timer += dt * 1000; // converte para ms
+
+    // Gera novo cano
+    if (this.timer >= this.nextPipeTime) {
+      this.timer = 0;
+      // Centro da abertura entre 20% e 80% da altura jogável
+      const playHeight = canvasHeight - GROUND_HEIGHT;
+      const minY = playHeight * 0.2;
+      const maxY = playHeight * 0.8;
+      const gapCenterY = randomBetween(minY, maxY);
+      const newPipe = new Pipe(
+        BASE_WIDTH + 10,
+        gapCenterY,
+        PIPE_GAP,
+        PIPE_WIDTH
+      );
+      this.pipes.push(newPipe);
+    }
+
+    // Move todos os canos
+    for (const pipe of this.pipes) {
+      pipe.update(dt, this.pipeSpeed);
+    }
+
+    // Remove canos fora da tela
+    this.pipes = this.pipes.filter(p => !p.isOffScreen(1));
+  }
+
+  /** Desenha todos os canos */
+  draw(ctx, canvasHeight, groundHeight, scale) {
+    for (const pipe of this.pipes) {
+      pipe.draw(ctx, canvasHeight, groundHeight, scale);
+    }
+  }
+
+  /**
+   * Verifica colisão do pássaro com todos os canos.
+   * Retorna true se houver colisão.
+   */
+  checkCollision(bird, scale) {
+    const bx = bird.x * scale;
+    const by = bird.y * scale;
+    const br = bird.hitboxRadius * scale;
+
+    for (const pipe of this.pipes) {
+      const hitboxes = pipe.getHitboxes(scale);
+      for (const hb of hitboxes) {
+        if (circleRect(bx, by, br, hb.x, hb.y, hb.w, hb.h)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Verifica se o pássaro passou por algum cano (pontuação).
+   * Retorna o número de pontos novos.
+   */
+  checkScore(bird, scale) {
+    let newPoints = 0;
+    const bx = bird.x * scale;
+
+    for (const pipe of this.pipes) {
+      if (!pipe.scored && (pipe.x * scale + pipe.width * scale) < bx) {
+        pipe.scored = true;
+        newPoints++;
+      }
+    }
+    return newPoints;
+  }
+
+  /** Reseta o gerenciador */
+  reset() {
+    this.pipes = [];
+    this.timer = 0;
+    this.pipeSpeed = PIPE_SPEED_BASE;
+  }
+}
+
+// ============================================================
+//  CLASSE: Background
+// ============================================================
+
+class Background {
+  constructor(canvasWidth, canvasHeight) {
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+    this.groundOffset = 0;
+
+    // Nuvens
+    this.clouds = [];
+    this._initClouds();
+
+    // Prédios da cidade
+    this.buildings = [];
+    this._initBuildings();
+  }
+
+  /** Inicializa nuvens com posições aleatórias */
+  _initClouds() {
+    const count = 5;
+    for (let i = 0; i < count; i++) {
+      this.clouds.push({
+        x: randomBetween(-100, this.canvasWidth + 100),
+        y: randomBetween(30, this.canvasHeight * 0.35),
+        size: randomBetween(30, 60),
+        speed: 30,
+      });
+    }
+  }
+
+  /** Inicializa prédios da cidade */
+  _initBuildings() {
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      this.buildings.push({
+        x: (i / count) * (this.canvasWidth + 100) - 50,
+        w: randomBetween(30, 60),
+        h: randomBetween(40, 120),
+      });
+    }
+  }
+
+  /** Atualiza posições das camadas de paralaxe */
+  update(dt) {
+    // Nuvens
+    for (const cloud of this.clouds) {
+      cloud.x -= cloud.speed * dt;
+      if (cloud.x + cloud.size < -50) {
+        cloud.x = this.canvasWidth + 50;
+        cloud.y = randomBetween(30, this.canvasHeight * 0.35);
+      }
+    }
+
+    // Prédios
+    for (const b of this.buildings) {
+      b.x -= 60 * dt;
+      if (b.x + b.w < -10) {
+        b.x = this.canvasWidth + randomBetween(10, 80);
+        b.h = randomBetween(40, 120);
+      }
+    }
+
+    // Chão
+    this.groundOffset += 200 * dt;
+    if (this.groundOffset >= 40) {
+      this.groundOffset -= 40;
+    }
+  }
+
+  /** Desenha todas as camadas de fundo */
+  draw(ctx, scale) {
+    const w = this.canvasWidth * scale;
+    const h = this.canvasHeight * scale;
+    const gh = GROUND_HEIGHT * scale;
+
+    // --- 1. Céu (gradiente) ---
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, h - gh);
+    skyGrad.addColorStop(0, COLORS.skyTop);
+    skyGrad.addColorStop(1, COLORS.skyBottom);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, h - gh);
+
+    // --- 2. Nuvens ---
+    ctx.fillStyle = COLORS.cloudColor;
+    for (const cloud of this.clouds) {
+      this._drawCloud(ctx, cloud.x * scale, cloud.y * scale, cloud.size * scale);
+    }
+
+    // --- 3. Cidade/colinas ---
+    const cityBaseY = (h - gh);
+    ctx.fillStyle = COLORS.cityColor;
+    for (const b of this.buildings) {
+      ctx.fillRect(b.x * scale, cityBaseY - b.h * scale, b.w * scale, b.h * scale);
+    }
+
+    // --- 4. Chão ---
+    this._drawGround(ctx, w, h, gh, scale);
+  }
+
+  /** Desenha uma nuvem com círculos sobrepostos */
+  _drawCloud(ctx, x, y, size) {
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.4, y - size * 0.15, size * 0.4, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.8, y, size * 0.45, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.35, y + size * 0.1, size * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** Desenha o chão com textura de grama animada */
+  _drawGround(ctx, w, h, gh, scale) {
+    // Cor base do chão
+    ctx.fillStyle = COLORS.ground;
+    ctx.fillRect(0, h - gh, w, gh);
+
+    // Linha de grama no topo
+    ctx.fillStyle = COLORS.grass;
+    ctx.fillRect(0, h - gh, w, 12 * scale);
+
+    // Padrão de grama (listras diagonais)
+    ctx.fillStyle = '#4a8c2c';
+    const stripeW = 20 * scale;
+    const offset = this.groundOffset * scale;
+    for (let x = -stripeW + offset; x < w + stripeW; x += stripeW * 2) {
+      ctx.fillRect(x, h - gh, stripeW, 12 * scale);
+    }
+
+    // Borda superior do chão
+    ctx.strokeStyle = '#8B7355';
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.moveTo(0, h - gh);
+    ctx.lineTo(w, h - gh);
+    ctx.stroke();
+  }
+
+  /** Redimensiona o fundo */
+  resize(canvasWidth, canvasHeight) {
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
+  }
+}
+
+// ============================================================
+//  CLASSE: Game (orquestração principal)
+// ============================================================
+
+class Game {
+  constructor() {
+    // Canvas
+    this.canvas = document.getElementById('gameCanvas');
+    this.ctx = this.canvas.getContext('2d');
+
+    // Estado do jogo
+    this.state = 'MENU'; // MENU | PLAYING | GAME_OVER
+    this.score = 0;
+    this.highScore = parseInt(localStorage.getItem('flappyHighScore')) || 0;
+
+    // Delta time
+    this.lastTime = 0;
+
+    // Flash de colisão
+    this.flashAlpha = 0;
+    this.flashFrames = 0;
+
+    // Death sequence
+    this.deathTimer = 0;
+    this.deathDuration = 0.8; // segundos
+    this.inputBlocked = false;
+
+    // Elementos DOM
+    this.modal = document.getElementById('gameOverModal');
+    this.modalScore = document.getElementById('modalScore');
+    this.modalBest = document.getElementById('modalBest');
+    this.newRecordBadge = document.getElementById('newRecordBadge');
+    this.btnRestart = document.getElementById('btnRestart');
+
+    // Audio
+    this.audio = new AudioManager();
+
+    // Componentes
+    this.bird = null;
+    this.pipeManager = null;
+    this.background = null;
+
+    // Animação do menu
+    this.menuBobTime = 0;
+    this.menuTextVisible = true;
+    this.menuTextTimer = null;
+
+    // Scale
+    this.scale = 1;
+
+    // Inicialização
+    this._resize();
+    this._init();
+    this._bindEvents();
+    this._startMenuTextBlink();
+
+    // Inicia o loop
+    this.lastTime = performance.now();
+    this._loop();
+  }
+
+  /** Inicializa componentes do jogo */
+  _init() {
+    const birdX = BASE_WIDTH * 0.3;
+    const birdY = BASE_HEIGHT * 0.45;
+    this.bird = new Bird(birdX, birdY);
+    this.pipeManager = new PipeManager();
+    this.background = new Background(BASE_WIDTH, BASE_HEIGHT);
+  }
+
+  /** Ajusta o tamanho do canvas mantendo aspect ratio 9:16 */
+  _resize() {
+    const container = document.getElementById('gameContainer');
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+
+    const targetRatio = BASE_WIDTH / BASE_HEIGHT; // 9:16 ≈ 0.5625
+    let canvasW, canvasH;
+
+    if (containerW / containerH < targetRatio) {
+      canvasW = containerW;
+      canvasH = containerW / targetRatio;
+    } else {
+      canvasH = containerH;
+      canvasW = containerH * targetRatio;
+    }
+
+    // Limita ao tamanho do container
+    canvasW = Math.min(canvasW, containerW);
+    canvasH = Math.min(canvasH, containerH);
+
+    this.canvas.width = canvasW;
+    this.canvas.height = canvasH;
+    this.scale = canvasW / BASE_WIDTH;
+
+    // Atualiza background
+    if (this.background) {
+      this.background.resize(BASE_WIDTH, BASE_HEIGHT);
+    }
+  }
+
+  /** Vincula eventos de input */
+  _bindEvents() {
+    // Redimensionamento
+    window.addEventListener('resize', () => this._resize());
+
+    // Teclado
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        this._handleInput();
+      }
+      if (e.code === 'Enter' && this.state === 'GAME_OVER') {
+        this._restart();
+      }
+    });
+
+    // Mouse
+    this.canvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      this._handleInput();
+    });
+
+    // Touch
+    this.canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      this._handleInput();
+    }, { passive: false });
+
+    // Botão reiniciar
+    this.btnRestart.addEventListener('click', () => {
+      this._restart();
+    });
+  }
+
+  /** Processa input do jogador */
+  _handleInput() {
+    if (this.inputBlocked) return;
+
+    if (this.state === 'MENU') {
+      this.audio.init();
+      this.state = 'PLAYING';
+      this.bird.flap();
+      this.audio.playFlap();
+    } else if (this.state === 'PLAYING') {
+      this.bird.flap();
+      this.audio.playFlap();
+    }
+  }
+
+  /** Inicia o piscar do texto do menu */
+  _startMenuTextBlink() {
+    this.menuTextTimer = setInterval(() => {
+      this.menuTextVisible = !this.menuTextVisible;
+    }, 600);
+  }
+
+  /** Loop principal do jogo */
+  _loop() {
+    const now = performance.now();
+    let dt = (now - this.lastTime) / 1000;
+    this.lastTime = now;
+
+    // Limita dt para evitar saltos grandes
+    dt = Math.min(dt, 0.05);
+
+    // Atualiza
+    this._update(dt);
+
+    // Renderiza
+    this._render();
+
+    // Próximo frame
+    this._requestId = requestAnimationFrame(() => this._loop());
+  }
+
+  /** Lógica de atualização por frame */
+  _update(dt) {
+    switch (this.state) {
+      case 'MENU':
+        this._updateMenu(dt);
+        break;
+      case 'PLAYING':
+        this._updatePlaying(dt);
+        break;
+      case 'GAME_OVER':
+        this._updateGameOver(dt);
+        break;
+    }
+  }
+
+  /** Atualiza estado MENU */
+  _updateMenu(dt) {
+    // Animação de bob do pássaro
+    this.menuBobTime += dt;
+    this.bird.y = BASE_HEIGHT * 0.45 + Math.sin(this.menuBobTime * 3) * 8;
+    this.bird.angle = 0;
+    this.bird.velocity = 0;
+
+    // Atualiza animação de asas
+    if (!this.bird.animFrozen) {
+      const now = performance.now();
+      if (now - this.bird.lastAnimTime >= ANIM_INTERVAL) {
+        this.bird.wingFrame = (this.bird.wingFrame + 1) % 3;
+        this.bird.lastAnimTime = now;
+      }
+    }
+
+    // Fundo continua se movendo
+    this.background.update(dt);
+  }
+
+  /** Atualiza estado PLAYING */
+  _updatePlaying(dt) {
+    // Atualiza pássaro
+    this.bird.update(dt);
+
+    // Atualiza canos
+    this.pipeManager.update(dt, BASE_HEIGHT, this.score);
+
+    // Atualiza fundo
+    this.background.update(dt);
+
+    // Verifica pontuação
+    const newPoints = this.pipeManager.checkScore(this.bird, this.scale);
+    if (newPoints > 0) {
+      this.score += newPoints;
+      this.audio.playScore();
+    }
+
+    // Verifica colisão
+    if (this.bird.alive) {
+      // Colisão com chão
+      if (this.bird.y + this.bird.radius >= BASE_HEIGHT - GROUND_HEIGHT) {
+        this._triggerGameOver();
+      }
+      // Colisão com topo
+      if (this.bird.y - this.bird.radius <= 0) {
+        this._triggerGameOver();
+      }
+      // Colisão com canos
+      if (this.pipeManager.checkCollision(this.bird, this.scale)) {
+        this._triggerGameOver();
+      }
+    }
+  }
+
+  /** Atualiza estado GAME_OVER (death sequence) */
+  _updateGameOver(dt) {
+    // Flash branco
+    if (this.flashFrames > 0) {
+      this.flashFrames--;
+      this.flashAlpha = 0.6;
+    } else {
+      this.flashAlpha = 0;
+    }
+
+    // Death sequence: pássaro cai por 0.8s
+    if (this.deathTimer < this.deathDuration) {
+      this.deathTimer += dt;
+      this.bird.update(dt); // Continua com gravidade
+    }
+  }
+
+  /** Aciona a sequência de Game Over */
+  _triggerGameOver() {
+    this.bird.alive = false;
+    this.bird.animFrozen = true;
+    this.state = 'GAME_OVER';
+    this.inputBlocked = true;
+    this.deathTimer = 0;
+    this.flashFrames = 3;
+
+    this.audio.playHit();
+
+    // Atualiza high score
+    if (this.score > this.highScore) {
+      this.highScore = this.score;
+      localStorage.setItem('flappyHighScore', this.highScore);
+    }
+
+    // Mostra modal após a death sequence
+    setTimeout(() => {
+      this._showGameOverModal();
+      this.inputBlocked = false;
+    }, this.deathDuration * 1000 + 200);
+  }
+
+  /** Exibe o modal de Game Over */
+  _showGameOverModal() {
+    this.modalScore.textContent = this.score;
+    this.modalBest.textContent = this.highScore;
+
+    if (this.score >= this.highScore && this.score > 0) {
+      this.newRecordBadge.classList.add('show');
+    } else {
+      this.newRecordBadge.classList.remove('show');
+    }
+
+    this.modal.classList.add('active');
+  }
+
+  /** Reinicia o jogo */
+  _restart() {
+    // Esconde modal
+    this.modal.classList.remove('active');
+
+    // Cancela animação piscante do menu e reinicia
+    if (this.menuTextTimer) {
+      clearInterval(this.menuTextTimer);
+    }
+    this.menuTextVisible = true;
+    this._startMenuTextBlink();
+
+    // Reseta tudo
+    this._init();
+    this.score = 0;
+    this.state = 'MENU';
+    this.flashAlpha = 0;
+    this.flashFrames = 0;
+    this.deathTimer = 0;
+    this.inputBlocked = false;
+  }
+
+  /** Renderiza tudo no canvas */
+  _render() {
+    const ctx = this.ctx;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    const s = this.scale;
+
+    // Limpa
+    ctx.clearRect(0, 0, w, h);
+
+    // Salva contexto e aplica escala
+    ctx.save();
+    ctx.scale(s, s);
+
+    // Desenha fundo
+    this.background.draw(ctx, s);
+
+    // Desenha canos
+    this.pipeManager.draw(ctx, BASE_HEIGHT, GROUND_HEIGHT, s);
+
+    // Desenha pássaro
+    this.bird.draw(ctx, s);
+
+    // Desenha pontuação durante PLAYING
+    if (this.state === 'PLAYING') {
+      this._drawScore(ctx);
+    }
+
+    // Desenha UI do MENU
+    if (this.state === 'MENU') {
+      this._drawMenuUI(ctx);
+    }
+
+    ctx.restore();
+
+    // Flash branco (fora da escala)
+    if (this.flashAlpha > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${this.flashAlpha})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
+  /** Desenha a pontuação no centro-superior */
+  _drawScore(ctx) {
+    ctx.save();
+    ctx.font = 'bold 48px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const x = BASE_WIDTH / 2;
+    const y = 60;
+
+    // Contorno preto
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.strokeText(this.score.toString(), x, y);
+
+    // Preenchimento branco
+    ctx.fillStyle = '#fff';
+    ctx.fillText(this.score.toString(), x, y);
+
+    ctx.restore();
+  }
+
+  /** Desenha a UI da tela de MENU */
+  _drawMenuUI(ctx) {
+    ctx.save();
+
+    // Título
+    ctx.font = 'bold 42px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const titleX = BASE_WIDTH / 2;
+    const titleY = 120;
+
+    // Contorno
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    ctx.strokeText('FLAPPY BIRD', titleX, titleY);
+
+    // Preenchimento com gradiente
+    const titleGrad = ctx.createLinearGradient(titleX - 100, titleY, titleX + 100, titleY);
+    titleGrad.addColorStop(0, '#f5c842');
+    titleGrad.addColorStop(0.5, '#ffe066');
+    titleGrad.addColorStop(1, '#f5c842');
+    ctx.fillStyle = titleGrad;
+    ctx.fillText('FLAPPY BIRD', titleX, titleY);
+
+    // High Score
+    if (this.highScore > 0) {
+      ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      const hsY = titleY + 50;
+      ctx.strokeText(`BEST: ${this.highScore}`, titleX, hsY);
+      ctx.fillText(`BEST: ${this.highScore}`, titleX, hsY);
+    }
+
+    // Texto piscante
+    if (this.menuTextVisible) {
+      ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      const promptY = BASE_HEIGHT * 0.7;
+      ctx.strokeText('Clique ou pressione', titleX, promptY);
+      ctx.fillText('Clique ou pressione', titleX, promptY);
+      ctx.strokeText('ESPAÇO para iniciar', titleX, promptY + 28);
+      ctx.fillText('ESPAÇO para iniciar', titleX, promptY + 28);
+    }
+
+    ctx.restore();
+  }
+}
+
+// ============================================================
+//  INICIALIZAÇÃO
+// ============================================================
+
+// Aguarda o DOM estar pronto
+document.addEventListener('DOMContentLoaded', () => {
+  new Game();
+});
+</script>
+</body>
+</html>
