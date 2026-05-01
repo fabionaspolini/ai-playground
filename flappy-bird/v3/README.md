@@ -8,7 +8,7 @@ Sem placa de vídeo dedicada.
 ### Statistics
 
 
-## Claude Code CLI
+## Claude Code CLI - NO_THINKING
 
 Modelo: com Sonnet 4.6
 

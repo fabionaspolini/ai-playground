@@ -15,7 +15,7 @@ Sem placa de vídeo dedicada.
 
 **qwen 3.6 27b** → Total time: 43 min, TFT: 27s, Total token: 4647
 
-## Claude Code CLI
+## Claude Code CLI - NO_THINKING
 
 Modelo: com Sonnet 4.6
 
